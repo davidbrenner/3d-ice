@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -38,6 +38,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "network_socket.h"
@@ -67,20 +68,24 @@ void seed_random ()
     (   ((double)(min_value))              \
       + ( ( (double)(max_value)-((double)(min_value)) )*rand() / (RAND_MAX+1.0f)) )
 
+#define MAX_SERVER_IP 50
 
 int main (int argc, char** argv)
 {
-    Socket client_socket ;
+    Socket_t client_socket ;
 
-    NetworkMessage client_nflp, client_powers, client_temperatures ;
-    NetworkMessage client_tmap, client_close_sim, server_reply ;
+    NetworkMessage_t client_nflp, client_powers, client_temperatures, client_cores ;
+    NetworkMessage_t client_tmap, client_close_sim, server_reply ;
 
-    Quantity_t nflpel, index, index2, nslots, nsensors ;
+    Quantity_t nflpel, index, index2, nslots, nresults, server_port ;
+
+    char server_ip [MAX_SERVER_IP] ;
 
     SimResult_t sim_result ;
 
-    OutputInstant_t instant ;
-    OutputType_t    type ;
+    OutputInstant_t  instant ;
+    OutputType_t     type ;
+    OutputQuantity_t quantity ;
 
     CellIndex_t row, column ;
     CellIndex_t nrows, ncolumns ;
@@ -93,20 +98,31 @@ int main (int argc, char** argv)
 
     /* Checks if all arguments are there **************************************/
 
-    if (argc != 2)
+    if (argc != 4)
     {
-        fprintf (stderr, "Usage: \"%s nslots\n", argv[0]) ;
+        fprintf (stderr, "Usage: \"%s nslots server_ip server_port\n", argv[0]) ;
 
         return EXIT_FAILURE ;
     }
 
     nslots = atoi (argv[1]) ;
 
+    if (strlen (argv[2]) > MAX_SERVER_IP - 1)
+    {
+        fprintf (stderr, "Server ip %s too long !!!\n", argv[2]) ;
+
+        return EXIT_FAILURE ;
+    }
+
+    strcpy (server_ip, argv[2]) ;
+
+    server_port = atoi (argv[3]) ;
+
     /* Creates socket *********************************************************/
 
     fprintf (stdout, "Creating socket ... ") ; fflush (stdout) ;
 
-    init_socket (&client_socket) ;
+    socket_init (&client_socket) ;
 
     if (open_client_socket (&client_socket) != TDICE_SUCCESS)
 
@@ -118,7 +134,7 @@ int main (int argc, char** argv)
 
     fprintf (stdout, "Connecting to server ... ") ; fflush (stdout) ;
 
-    if (connect_client_to_server (&client_socket, "127.0.0.1", 10024) != TDICE_SUCCESS)
+    if (connect_client_to_server (&client_socket, (String_t)server_ip, server_port) != TDICE_SUCCESS)
 
         return EXIT_FAILURE ;
 
@@ -135,7 +151,7 @@ int main (int argc, char** argv)
     /* Client-Server Communication ********************************************/
     /**************************************************************************/
 
-    init_network_message (&client_nflp) ;
+    network_message_init (&client_nflp) ;
     build_message_head   (&client_nflp, TDICE_TOTAL_NUMBER_OF_FLOORPLAN_ELEMENTS) ;
 
     send_message_to_socket      (&client_socket, &client_nflp) ;
@@ -143,13 +159,13 @@ int main (int argc, char** argv)
 
     extract_message_word (&client_nflp, &nflpel, 0) ;
 
-    free_network_message (&client_nflp) ;
+    network_message_destroy (&client_nflp) ;
 
     for ( ; nslots != 0 ; nslots--)
     {
         /* client sends power values ******************************************/
 
-        init_network_message (&client_powers) ;
+        network_message_init (&client_powers) ;
         build_message_head   (&client_powers, TDICE_INSERT_POWERS_AND_SIMULATE_SLOT) ;
         insert_message_word  (&client_powers, &nflpel) ;
 
@@ -162,11 +178,11 @@ int main (int argc, char** argv)
 
         send_message_to_socket (&client_socket, &client_powers) ;
 
-        free_network_message (&client_powers) ;
+        network_message_destroy (&client_powers) ;
 
         /* Client waits for simulation result *********************************/
 
-        init_network_message (&server_reply) ;
+        network_message_init (&server_reply) ;
 
         receive_message_from_socket (&client_socket, &server_reply) ;
 
@@ -174,79 +190,79 @@ int main (int argc, char** argv)
 
         if (sim_result != TDICE_SLOT_DONE)
         {
-            free_network_message (&server_reply) ;
+            network_message_destroy (&server_reply) ;
 
-            close_socket (&client_socket) ;
+            socket_close (&client_socket) ;
 
             return EXIT_FAILURE ;
         }
 
-        free_network_message (&server_reply) ;
+        network_message_destroy (&server_reply) ;
 
-        /* Client sends temperatures request **********************************/
+        /* Client sends temperatures request for thermal sensors **************/
 
-        instant = TDICE_OUTPUT_INSTANT_SLOT ;
-        type    = TDICE_OUTPUT_TYPE_TCELL ;
+        instant  = TDICE_OUTPUT_INSTANT_SLOT ;
+        type     = TDICE_OUTPUT_TYPE_TCELL ;
+        quantity = TDICE_OUTPUT_QUANTITY_NONE ;
 
-        init_network_message (&client_temperatures) ;
-        build_message_head   (&client_temperatures, TDICE_THERMAL_RESULTS) ;
+        network_message_init (&client_temperatures) ;
+        build_message_head   (&client_temperatures, TDICE_SEND_OUTPUT) ;
         insert_message_word  (&client_temperatures, &instant) ;
         insert_message_word  (&client_temperatures, &type) ;
+        insert_message_word  (&client_temperatures, &quantity) ;
 
         send_message_to_socket (&client_socket, &client_temperatures) ;
 
-        free_network_message (&client_temperatures) ;
+        network_message_destroy (&client_temperatures) ;
 
         /* Client receives temperatures ***************************************/
 
-        init_network_message (&server_reply) ;
+        network_message_init (&server_reply) ;
 
         receive_message_from_socket (&client_socket, &server_reply) ;
 
         extract_message_word (&server_reply, &time,     0) ;
-        extract_message_word (&server_reply, &nsensors, 1) ;
+        extract_message_word (&server_reply, &nresults, 1) ;
 
         fprintf (stdout, "%5.2f sec : \t", time) ;
 
-        for (index = 2, nsensors += 2 ; index != nsensors ; index++)
+        for (index = 2, nresults += 2 ; index != nresults ; index++)
         {
             extract_message_word (&server_reply, &temperature, index) ;
 
             fprintf (stdout, "%5.2f K \t", temperature) ;
         }
 
-        fprintf (stdout, "\n") ;
-
-        free_network_message (&server_reply) ;
+        network_message_destroy (&server_reply) ;
 
         /* Client sends thermal maps request **********************************/
 
-        instant = TDICE_OUTPUT_INSTANT_SLOT ;
-        type    = TDICE_OUTPUT_TYPE_TMAP ;
+        instant  = TDICE_OUTPUT_INSTANT_SLOT ;
+        type     = TDICE_OUTPUT_TYPE_TMAP ;
+        quantity = TDICE_OUTPUT_QUANTITY_NONE ;
 
-        init_network_message (&client_tmap) ;
-        build_message_head   (&client_tmap, TDICE_THERMAL_RESULTS) ;
+        network_message_init (&client_tmap) ;
+        build_message_head   (&client_tmap, TDICE_SEND_OUTPUT) ;
         insert_message_word  (&client_tmap, &instant) ;
         insert_message_word  (&client_tmap, &type) ;
+        insert_message_word  (&client_tmap, &quantity) ;
 
         send_message_to_socket (&client_socket, &client_tmap) ;
 
-        free_network_message (&client_tmap) ;
+        network_message_destroy (&client_tmap) ;
 
         /* Client receives thermal maps ***************************************/
 
-        init_network_message (&server_reply) ;
+        network_message_init (&server_reply) ;
 
         receive_message_from_socket (&client_socket, &server_reply) ;
 
         extract_message_word (&server_reply, &time,     0) ;
-        extract_message_word (&server_reply, &nsensors, 1) ;
+        extract_message_word (&server_reply, &nresults, 1) ;
         extract_message_word (&server_reply, &nrows,    2) ;
         extract_message_word (&server_reply, &ncolumns, 3) ;
 
-//        fprintf (stdout, "%.1f %d %d %d\n", time, nsensors, nrows, ncolumns) ;
-
-        for (index = 4, index2 = 0 ; index2 != nsensors ; index2++)
+        for (index = 4, index2 = 0 ; index2 != nresults ; index2++)
         {
             for (row = 0 ; row != nrows ; row++)
             {
@@ -261,23 +277,59 @@ int main (int argc, char** argv)
             fprintf (tmap, "\n") ;
         }
 
-        free_network_message (&server_reply) ;
+        network_message_destroy (&server_reply) ;
+
+        /* Client sends temperatures request for cores ************************/
+
+        instant  = TDICE_OUTPUT_INSTANT_SLOT ;
+        type     = TDICE_OUTPUT_TYPE_TFLPEL ;
+        quantity = TDICE_OUTPUT_QUANTITY_AVERAGE ;
+
+        network_message_init (&client_cores) ;
+        build_message_head   (&client_cores, TDICE_SEND_OUTPUT) ;
+        insert_message_word  (&client_cores, &instant) ;
+        insert_message_word  (&client_cores, &type) ;
+        insert_message_word  (&client_cores, &quantity) ;
+
+        send_message_to_socket (&client_socket, &client_cores) ;
+
+        network_message_destroy (&client_cores) ;
+
+        /* Client receives cores temperatures  ********************************/
+
+        network_message_init (&server_reply) ;
+
+        receive_message_from_socket (&client_socket, &server_reply) ;
+
+        extract_message_word (&server_reply, &time,     0) ;
+        extract_message_word (&server_reply, &nresults, 1) ;
+
+        for (index = 2, nresults += 2 ; index != nresults ; index++)
+        {
+            extract_message_word (&server_reply, &temperature, index) ;
+
+            fprintf (stdout, "%5.2f K \t", temperature) ;
+        }
+
+        fprintf (stdout, "\n") ;
+
+        network_message_destroy (&server_reply) ;
     }
 
     fclose (tmap) ;
 
     /* Closes the simulation on the server ************************************/
 
-    init_network_message (&client_close_sim) ;
+    network_message_init (&client_close_sim) ;
     build_message_head   (&client_close_sim, TDICE_EXIT_SIMULATION) ;
 
     send_message_to_socket (&client_socket, &client_close_sim) ;
 
-    free_network_message (&client_close_sim) ;
+    network_message_destroy (&client_close_sim) ;
 
     /* Closes client sockek ***************************************************/
 
-    if (close_socket (&client_socket) != TDICE_SUCCESS)
+    if (socket_close (&client_socket) != TDICE_SUCCESS)
 
         return EXIT_FAILURE ;
 

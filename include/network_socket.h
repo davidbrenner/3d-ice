@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -55,13 +55,13 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct Socket
+    /*! \struct Socket_t
      *
      *  \brief Structure used to set up and use network connections
      *
      */
 
-    struct Socket
+    struct Socket_t
     {
         /*! The descriptor of the socket (like a unique id - file descriptor) */
 
@@ -80,30 +80,35 @@ extern "C"
         PortNumber_t PortNumber ;
     } ;
 
-    /*! Definition of the type Socket */
+    /*! Definition of the type Socket_t */
 
-    typedef struct Socket Socket ;
+    typedef struct Socket_t Socket_t ;
 
 
-    /*! Initializes a socket
+
+/******************************************************************************/
+
+
+
+    /*! Inits the fields of the \a socket structure with default values
      *
-     * \param socket the address of the Socket to initialize
+     * \param socket the address of the structure to initalize
      */
 
-    void init_socket (Socket *socket) ;
+    void socket_init (Socket_t *socket) ;
 
 
 
     /*! Open a socket for the client side
      *
-     * \param client the address of the Socket to open
+     * \param csocket the address of the Socket to open
      *
      * \return \c TDICE_SUCCESS if the opening succeeded
      * \return \c TDICE_FAILURE if the opening fails. A message will be
      *                          printed on standard error
      */
 
-    Error_t open_client_socket (Socket *client) ;
+    Error_t open_client_socket (Socket_t *csocket) ;
 
 
 
@@ -113,7 +118,7 @@ extern "C"
      * \a port_numebr over any kind of address. It finally enables the
      * listening.
      *
-     * \param server      the address of the Socket to open
+     * \param ssocket        the address of the Socket to open
      * \param port_number the port number of the server
      *
      * \return \c TDICE_SUCCESS if the opening succeeded
@@ -123,7 +128,7 @@ extern "C"
 
     Error_t open_server_socket
     (
-        Socket       *server,
+        Socket_t     *ssocket,
         PortNumber_t  port_number
     ) ;
 
@@ -135,7 +140,7 @@ extern "C"
      * The server side must be waiting for a connection. On error, the
      * socket is closed.
      *
-     * \param client      the address of the ClientSocket to initialize
+     * \param csocket        the address of the ClientSocket to initialize
      * \param host_name   the ip address of the server (as dotted string)
      * \param port_number the port number of the server
      *
@@ -146,7 +151,7 @@ extern "C"
 
     Error_t connect_client_to_server
     (
-        Socket       *client,
+        Socket_t     *csocket,
         String_t      host_name,
         PortNumber_t  port_number
     ) ;
@@ -155,7 +160,7 @@ extern "C"
 
     /*! Waits unitl a client sends a connect to the server
      *
-     * \param server the address of the ServerSocket that will wait
+     * \param ssocket   the address of the ServerSocket that will wait
      * \param client the address of the ClientSocket that will connect_to_server
      *
      * \return \c TDICE_SUCCESS if the connection with the client succeeded
@@ -163,13 +168,13 @@ extern "C"
      *                          printed on standard error
      */
 
-    Error_t wait_for_client (Socket *server, Socket *client) ;
+    Error_t wait_for_client (Socket_t *ssocket, Socket_t *client) ;
 
 
 
     /*! Sends a message to a socket
      *
-     * \param socket  the socket where the message will be sent
+     * \param socket    the socket where the message will be sent
      * \param message the address of message to send
      *
      * \return \c TDICE_SUCCESS if the operation succeeded
@@ -179,15 +184,15 @@ extern "C"
 
     Error_t send_message_to_socket
     (
-        Socket         *socket,
-        NetworkMessage *message
+        Socket_t         *socket,
+        NetworkMessage_t *message
     ) ;
 
 
 
     /*! Receive a text message from a socket
      *
-     * \param socket  the socket where the message will be received
+     * \param socket    the socket where the message will be received
      * \param message the address of message to receive
      *
      * \return \c TDICE_SUCCESS if the operation succeeded
@@ -197,8 +202,8 @@ extern "C"
 
     Error_t receive_message_from_socket
     (
-        Socket         *socket,
-        NetworkMessage *message
+        Socket_t         *socket,
+        NetworkMessage_t *message
     ) ;
 
 
@@ -212,7 +217,9 @@ extern "C"
      *                          printed on standard error
      */
 
-    Error_t close_socket (Socket *socket) ;
+    Error_t socket_close (Socket_t *socket) ;
+
+/******************************************************************************/
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -43,68 +43,152 @@
 
 /******************************************************************************/
 
-void init_channel (Channel *channel)
+void coolant_init (Coolant_t *coolant)
 {
-    channel->ChannelModel          = TDICE_CHANNEL_MODEL_NONE ;
-    channel->Height                = 0.0 ;
-    channel->Length                = 0.0 ;
-    channel->Pitch                 = 0.0 ;
-    channel->Porosity              = 0.0 ;
-    channel->NChannels             = 0u ;
-    channel->NLayers               = 0u ;
-    channel->SourceLayerOffset     = 0u ;
-    channel->Coolant.HTCSide       = 0.0 ;
-    channel->Coolant.HTCTop        = 0.0 ;
-    channel->Coolant.HTCBottom     = 0.0 ;
-    channel->Coolant.VHC           = 0.0 ;
-    channel->Coolant.FlowRate      = 0.0 ;
-    channel->Coolant.DarcyVelocity = 0.0 ;
-    channel->Coolant.TIn           = 0.0 ;
-    channel->WallMaterial          = NULL ;
+    coolant->HTCSide       = (CoolantHTC_t) 0.0 ;
+    coolant->HTCTop        = (CoolantHTC_t) 0.0 ;
+    coolant->HTCBottom     = (CoolantHTC_t) 0.0 ;
+    coolant->VHC           = (CoolantVHC_t) 0.0 ;
+    coolant->FlowRate      = (CoolantFR_t) 0.0 ;
+    coolant->DarcyVelocity = (DarcyVelocity_t) 0.0 ;
+    coolant->TIn           = (Temperature_t) 0.0 ;
 }
 
 /******************************************************************************/
 
-Channel *alloc_and_init_channel (void)
+void coolant_copy (Coolant_t *dst, Coolant_t *src)
 {
-    Channel *channel = (Channel *) malloc (sizeof(Channel)) ;
+    coolant_destroy (dst) ;
+
+    dst->HTCSide       = src->HTCSide ;
+    dst->HTCTop        = src->HTCTop ;
+    dst->HTCBottom     = src->HTCBottom ;
+    dst->VHC           = src->VHC ;
+    dst->FlowRate      = src->FlowRate ;
+    dst->DarcyVelocity = src->DarcyVelocity ;
+    dst->TIn           = src->TIn ;
+}
+
+/******************************************************************************/
+
+void coolant_destroy (Coolant_t *coolant)
+{
+    // Nothing to do ...
+
+    coolant_init (coolant) ;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+/******************************************************************************/
+
+void channel_init (Channel_t *channel)
+{
+    channel->ChannelModel      = (ChannelModel_t) TDICE_CHANNEL_MODEL_NONE ;
+    channel->Height            = (CellDimension_t) 0.0 ;
+    channel->Length            = (ChannelDimension_t) 0.0 ;
+    channel->Pitch             = (ChannelDimension_t) 0.0 ;
+    channel->Porosity          = (ChannelDimension_t) 0.0 ;
+    channel->NChannels         = (Quantity_t) 0u ;
+    channel->NLayers           = (CellIndex_t) 0u ;
+    channel->SourceLayerOffset = (CellIndex_t) 0u ;
+
+    coolant_init  (&channel->Coolant) ;
+    material_init (&channel->WallMaterial) ;
+}
+
+/******************************************************************************/
+
+void channel_copy (Channel_t *dst, Channel_t *src)
+{
+    channel_destroy (dst) ;
+
+    dst->ChannelModel          = src->ChannelModel ;
+    dst->Height                = src->Height ;
+    dst->Length                = src->Length ;
+    dst->Pitch                 = src->Pitch ;
+    dst->Porosity              = src->Porosity ;
+    dst->NChannels             = src->NChannels ;
+    dst->NLayers               = src->NLayers ;
+    dst->SourceLayerOffset     = src->SourceLayerOffset ;
+
+    coolant_copy  (&dst->Coolant,      &src->Coolant) ;
+    material_copy (&dst->WallMaterial, &src->WallMaterial) ;
+}
+
+/******************************************************************************/
+
+void channel_destroy (Channel_t *channel)
+{
+    coolant_destroy  (&channel->Coolant) ;
+    material_destroy (&channel->WallMaterial) ;
+
+    channel_init (channel) ;
+}
+/******************************************************************************/
+
+Channel_t *channel_calloc ( void )
+{
+    Channel_t *channel = (Channel_t *) malloc (sizeof(Channel_t)) ;
 
     if (channel != NULL)
 
-        init_channel (channel) ;
+        channel_init (channel) ;
 
     return channel ;
 }
 
 /******************************************************************************/
 
-void free_channel (Channel *channel)
+Channel_t *channel_clone (Channel_t *channel)
 {
-    FREE_POINTER (free, channel) ;
+    if (channel == NULL)
+
+        return NULL ;
+
+    Channel_t *newc = channel_calloc ( ) ;
+
+    if (newc != NULL)
+
+        channel_copy (newc, channel) ;
+
+    return newc ;
 }
 
 /******************************************************************************/
 
-void print_formatted_channel
+void channel_free (Channel_t *channel)
+{
+    if (channel == NULL)
+
+        return ;
+
+    channel_destroy (channel) ;
+
+    free (channel) ;
+}
+
+/******************************************************************************/
+
+void channel_print
 (
-    FILE       *stream,
-    String_t    prefix,
-    Channel    *channel,
-    Dimensions *dimensions
+    Channel_t    *channel,
+    FILE         *stream,
+    String_t      prefix,
+    Dimensions_t *dimensions
 )
 {
     if (channel->ChannelModel == TDICE_CHANNEL_MODEL_MC_4RM)
     {
         fprintf (stream, "%smicrochannel 4rm :\n", prefix) ;
         fprintf (stream, "%s   height            %7.1f ;\n", prefix, channel->Height) ;
-        fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   channel    length %7.1f ;\n", prefix, dimensions->Cell.ChannelLength) ;
         fprintf (stream, "%s   wall       length %7.1f ;\n", prefix, dimensions->Cell.WallLength) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   first wall length %7.1f ;\n", prefix, dimensions->Cell.FirstWallLength) ;
         fprintf (stream, "%s    last wall length %7.1f ;\n", prefix, dimensions->Cell.LastWallLength) ;
         fprintf (stream, "%s\n", prefix) ;
-        fprintf (stream, "%s   wall material %s ;\n", prefix, channel->WallMaterial->Id) ;
+        fprintf (stream, "%s   wall material %s ;\n", prefix, channel->WallMaterial.Id) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   coolant flow rate  %.2f ;\n", prefix, FLOW_RATE_FROM_UM3SEC_TO_MLMIN(channel->Coolant.FlowRate)) ;
         fprintf (stream, "%s\n", prefix) ;
@@ -121,11 +205,10 @@ void print_formatted_channel
     {
         fprintf (stream, "%smicrochannel 2rm :\n", prefix) ;
         fprintf (stream, "%s   height            %7.1f ;\n", prefix, channel->Height) ;
-        fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   channel    length %7.1f ;\n", prefix, channel->Length) ;
         fprintf (stream, "%s   wall       length %7.1f ;\n", prefix, channel->Pitch - channel->Length) ;
         fprintf (stream, "%s\n", prefix) ;
-        fprintf (stream, "%s   wall material %s ;\n", prefix, channel->WallMaterial->Id) ;
+        fprintf (stream, "%s   wall material %s ;\n", prefix, channel->WallMaterial.Id) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   coolant flow rate  %.2f ;\n", prefix, FLOW_RATE_FROM_UM3SEC_TO_MLMIN(channel->Coolant.FlowRate)) ;
         fprintf (stream, "%s\n", prefix) ;
@@ -141,13 +224,12 @@ void print_formatted_channel
     {
         fprintf (stream, "%spinfin :\n", prefix) ;
         fprintf (stream, "%s   height            %7.1f ;\n", prefix, channel->Height) ;
-        fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   pin diameter %7.1f ;\n",   prefix, DIAMETER(channel->Porosity, channel->Pitch)) ;
         fprintf (stream, "%s   pin pitch    %7.1f ;\n", prefix, channel->Pitch) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   pin distribution inline ;\n", prefix) ;
         fprintf (stream, "%s\n", prefix) ;
-        fprintf (stream, "%s   pin material %s ;\n", prefix, channel->WallMaterial->Id) ;
+        fprintf (stream, "%s   pin material %s ;\n", prefix, channel->WallMaterial.Id) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   darcy velocity  %.4e ;\n", prefix, channel->Coolant.DarcyVelocity) ;
         fprintf (stream, "%s\n", prefix) ;
@@ -160,13 +242,12 @@ void print_formatted_channel
     {
         fprintf (stream, "%spinfin :\n", prefix) ;
         fprintf (stream, "%s   height            %7.1f ;\n", prefix, channel->Height) ;
-        fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   pin diameter %7.1f ;\n",   prefix, DIAMETER(channel->Porosity, channel->Pitch)) ;
         fprintf (stream, "%s   pin pitch    %7.1f ;\n", prefix, channel->Pitch) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   pin distribution staggered ;\n", prefix) ;
         fprintf (stream, "%s\n", prefix) ;
-        fprintf (stream, "%s   pin material %s ;\n", prefix, channel->WallMaterial->Id) ;
+        fprintf (stream, "%s   pin material %s ;\n", prefix, channel->WallMaterial.Id) ;
         fprintf (stream, "%s\n", prefix) ;
         fprintf (stream, "%s   darcy velocity  %.4e ;\n", prefix, channel->Coolant.DarcyVelocity) ;
         fprintf (stream, "%s\n", prefix) ;
@@ -178,595 +259,71 @@ void print_formatted_channel
 
 /******************************************************************************/
 
-void print_detailed_channel
+Cconv_t get_convective_term
 (
-  FILE    *stream,
-  String_t prefix,
-  Channel *channel
+    Channel_t    *channel,
+    Dimensions_t *dimensions,
+    CellIndex_t   layer_index,
+    CellIndex_t   __attribute__ ((unused)) row_index,
+    CellIndex_t   column_index
 )
 {
-    fprintf (stream,
-        "%schannel                     = %p\n",
-        prefix,   channel) ;
+    Cconv_t C = 0.0 ;
 
-    fprintf (stream,
-        "%s  ChannelModel              = %d\n",
-        prefix, channel->ChannelModel) ;
-
-    fprintf (stream,
-        "%s  Height                    = %.1f\n",
-        prefix,  channel->Height) ;
-
-    fprintf (stream,
-        "%s  Length                    = %.1f\n",
-        prefix,  channel->Length) ;
-
-    fprintf (stream,
-        "%s  Pitch                     = %.1f\n",
-        prefix,  channel->Pitch) ;
-
-    fprintf (stream,
-        "%s  Porosity                  = %.1f\n",
-        prefix,  channel->Porosity) ;
-
-    fprintf (stream,
-        "%s  NChannels                 = %d\n",
-        prefix,  channel->NChannels) ;
-
-    fprintf (stream,
-        "%s  NLayers                   = %d\n",
-        prefix,  channel->NLayers) ;
-
-    fprintf (stream,
-        "%s  SourceLayerOffset         = %d\n",
-        prefix, channel->SourceLayerOffset) ;
-
-    fprintf (stream,
-        "%s  Coolant.HTCSide           = %.4e\n",
-        prefix,  channel->Coolant.HTCSide) ;
-
-    fprintf (stream,
-        "%s  Coolant.HTCTop            = %.4e\n",
-        prefix,  channel->Coolant.HTCTop) ;
-
-    fprintf (stream,
-        "%s  Coolant.HTCBottom         = %.4e\n",
-        prefix,  channel->Coolant.HTCBottom) ;
-
-    fprintf (stream,
-        "%s  Coolant.VHC               = %.4e\n",
-        prefix,  channel->Coolant.VHC) ;
-
-    fprintf (stream,
-        "%s  Coolant.TIn               = %.2f\n",
-        prefix,  channel->Coolant.TIn) ;
-
-    fprintf (stream,
-        "%s  CoolantFR                 = %.4e\n",
-        prefix,  channel->Coolant.FlowRate) ;
-
-    fprintf (stream,
-        "%s  DarcyVelocity             = %.4e\n",
-        prefix,  channel->Coolant.DarcyVelocity) ;
-
-    fprintf (stream,
-        "%s  WallMaterial              = %p\n",
-        prefix,  channel->WallMaterial) ;
-}
-
-/******************************************************************************/
-
-static
-void fill_thermal_cell_channel_4rm
-(
-    ThermalCell *thermalcells,
-    Time_t       delta_time,
-    Dimensions  *dimensions,
-    CellIndex_t  layer_index,
-    Channel     *channel
-)
-{
-#ifdef PRINT_THERMAL_CELLS
-    CellIndex_t cell_index =
-
-        get_cell_offset_in_stack (dimensions, layer_index , 0, 0) ;
-#endif
-
-    thermalcells += layer_index * get_number_of_columns (dimensions) ;
-
-    FOR_EVERY_COLUMN (column_index, dimensions)
-    {
-#ifdef PRINT_THERMAL_CELLS
-        fprintf (stderr,
-            "  l %2d c %4d [%7d] ",
-            layer_index, column_index, cell_index++) ;
-#endif
-
-        if (IS_CHANNEL_COLUMN(channel->ChannelModel, column_index) == true)
-
-            fill_liquid_cell_mc_4rm
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->NChannels,
-                channel->Coolant
-            ) ;
-
-        else
-
-            fill_solid_cell_central
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->WallMaterial->ThermalConductivity,
-                channel->WallMaterial->VolumetricHeatCapacity
-            ) ;
-
-        thermalcells ++ ;
-
-    } // FOR_EVERY_COLUMN
-}
-
-/******************************************************************************/
-
-static void fill_thermal_cell_channel_2rm
-(
-    ThermalCell *thermalcells,
-    Time_t       delta_time,
-    Dimensions  *dimensions,
-    CellIndex_t  layer_index,
-    Channel     *channel
-)
-{
-#ifdef PRINT_THERMAL_CELLS
-    CellIndex_t cell_index =
-
-        get_cell_offset_in_stack (dimensions, layer_index , 0, 0) ;
-#endif
-
-    thermalcells += layer_index * get_number_of_columns (dimensions) ;
-
-    /* Bottom Wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-            init_thermal_cell (thermalcells) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Virtual wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-#ifdef PRINT_THERMAL_CELLS
-            fprintf (stderr,
-                "  l %2d c %4d [%7d] ",
-                layer_index, column_index, cell_index++) ;
-#endif
-
-            fill_virtual_wall_cell_mc_2rm
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->Porosity,
-                channel->WallMaterial->ThermalConductivity,
-                channel->WallMaterial->VolumetricHeatCapacity
-            ) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Channel for PF 2RM */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-#ifdef PRINT_THERMAL_CELLS
-            fprintf (stderr,
-                "  l %2d c %4d [%7d] ",
-                layer_index, column_index, cell_index++) ;
-#endif
-
-            fill_liquid_cell_mc_2rm
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->NChannels, channel->Length,
-                channel->Porosity, channel->Coolant
-            ) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Top Wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-            init_thermal_cell (thermalcells) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-}
-
-/******************************************************************************/
-
-static void fill_thermal_cell_channel_pf
-(
-    ThermalCell *thermalcells,
-    Time_t       delta_time,
-    Dimensions  *dimensions,
-    CellIndex_t  layer_index,
-    Channel     *channel
-)
-{
-#ifdef PRINT_THERMAL_CELLS
-    CellIndex_t cell_index =
-
-        get_cell_offset_in_stack (dimensions, layer_index , 0, 0) ;
-#endif
-
-    thermalcells += layer_index * get_number_of_columns (dimensions) ;
-
-    /* Bottom Wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-            init_thermal_cell (thermalcells) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Virtual wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-#ifdef PRINT_THERMAL_CELLS
-            fprintf (stderr,
-                "  l %2d c %4d [%7d] ",
-                layer_index, column_index, cell_index++) ;
-#endif
-
-            fill_virtual_wall_cell_pf
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->Porosity,
-                channel->WallMaterial->ThermalConductivity,
-                channel->WallMaterial->VolumetricHeatCapacity
-            ) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Channel for PF 2RM */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-#ifdef PRINT_THERMAL_CELLS
-            fprintf (stderr,
-                "  l %2d c %4d [%7d] ",
-                layer_index, column_index, cell_index++) ;
-#endif
-
-            fill_liquid_cell_pf
-            (
-                thermalcells, delta_time,
-                get_cell_length(dimensions, column_index),
-                get_cell_width(dimensions, 0),
-                channel->Height,
-                channel->ChannelModel,
-                channel->Porosity, channel->Coolant
-            ) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-
-    layer_index++ ;
-
-    /* Top Wall */
-
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-            init_thermal_cell (thermalcells) ;
-
-            thermalcells++;
-
-        } // FOR_EVERY_COLUMN
-    }
-}
-
-/******************************************************************************/
-
-void fill_thermal_cell_channel
-(
-    ThermalCell *thermalcells,
-    Time_t       delta_time,
-    Dimensions  *dimensions,
-    CellIndex_t  layer_index,
-    Channel     *channel
-)
-{
     switch (channel->ChannelModel)
     {
         case TDICE_CHANNEL_MODEL_MC_4RM :
 
-            fill_thermal_cell_channel_4rm
+            C = CCONV_MC_4RM
 
-                (thermalcells, delta_time, dimensions, layer_index, channel) ;
+                (channel->NChannels, channel->Coolant.VHC,
+                 channel->Coolant.FlowRate);
 
             break ;
 
         case TDICE_CHANNEL_MODEL_MC_2RM :
 
-            fill_thermal_cell_channel_2rm
+            C = CCONV_MC_2RM
 
-                (thermalcells, delta_time, dimensions, layer_index, channel) ;
+                (channel->NChannels,        channel->Coolant.VHC,
+                 channel->Coolant.FlowRate, channel->Porosity,
+                 get_cell_length (dimensions, column_index),
+                 channel->Length) ;
 
             break ;
 
         case TDICE_CHANNEL_MODEL_PF_INLINE :
         case TDICE_CHANNEL_MODEL_PF_STAGGERED :
 
-            fill_thermal_cell_channel_pf
+            C = CCONV_PF
 
-                (thermalcells, delta_time, dimensions, layer_index, channel) ;
+                (channel->Coolant.VHC, channel->Coolant.DarcyVelocity,
+                 get_cell_length (dimensions, column_index),
+                 get_cell_height (dimensions, layer_index));
+
+            break ;
+
+        case TDICE_CHANNEL_MODEL_NONE :
+
+            fprintf (stderr, "WARNING: unsert channel model\n") ;
 
             break ;
 
         default :
 
-            fprintf (stderr,
-                "Error: unkonw channel model %d\n",
+            fprintf (stderr, "ERROR: unknown channel model %d\n",
                 channel->ChannelModel) ;
     }
-}
 
-/******************************************************************************/
-
-void fill_sources_channel
-(
-    Source_t   *sources,
-    Dimensions *dimensions,
-    CellIndex_t layer_index,
-    Channel    *channel
-)
-{
-    // In 2RM, the channel offset is the layer index of the bottom wall,
-    // so we need to add the offset of channel to "layer_index", which
-    // represents the layer index of the channel.
-
-    layer_index += channel->SourceLayerOffset ;
-
-# ifdef PRINT_SOURCES
-    fprintf (stderr,
-        "layer_index = %d\tfill_sources_channel %s\n",
-        layer_index, channel->WallMaterial->Id) ;
-# endif
-
-    // TODO
-
-    // This piece of code works as long as the 2rm channel model
-    // is implemented with an homogeneous cell length. Here we use the length
-    // of the cell in the first column. Otherwise, the computation of C must
-    // me put inside the column loop.
-
-    Cconv_t C;
-
-    if (   channel->ChannelModel == TDICE_CHANNEL_MODEL_PF_INLINE
-        || channel->ChannelModel == TDICE_CHANNEL_MODEL_PF_STAGGERED)
-    {
-
-        C = CCONV_PF
-
-            (channel->Coolant.VHC, channel->Coolant.DarcyVelocity,
-             get_cell_length (dimensions, 0), channel->Height);
-
-    }
-    else if (channel->ChannelModel == TDICE_CHANNEL_MODEL_MC_2RM)
-    {
-
-        C = CCONV_MC_2RM
-
-            (channel->NChannels, channel->Coolant.VHC, channel->Coolant.FlowRate,
-             channel->Porosity, get_cell_length(dimensions,0), channel->Length) ;
-
-    }
-    else //TDICE_CHANNEL_MODEL_MC_4RM
-    {
-
-        C = CCONV_MC_4RM
-
-            (channel->NChannels, channel->Coolant.VHC, channel->Coolant.FlowRate);
-
-    }
-
-    sources += get_cell_offset_in_stack (dimensions, layer_index, 0, 0) ;
-
-    Source_t tmp = (Source_t) 2.0 * C * channel->Coolant.TIn ;
-
-    FOR_EVERY_COLUMN (column_index, dimensions)
-    {
-        if (IS_CHANNEL_COLUMN (channel->ChannelModel, column_index) == true)
-        {
-            *sources = tmp ;
-
-#ifdef PRINT_SOURCES
-            fprintf (stderr,
-                "liquid cell  | r %4d c    0 | l %6.1f w %6.1f "
-                " | %.5e [source] = 2 * %.2f [Tin] * %.5e [C]\n",
-                column_index,
-                get_cell_length (dimensions, column_index), get_cell_width (dimensions, 0),
-                *sources, channel->Coolant.TIn, C) ;
-#endif
-        }
-
-        sources++ ;
-
-    } // FOR_EVERY_COLUMN
-}
-
-/******************************************************************************/
-
-SystemMatrix fill_system_matrix_channel
-(
-    Channel      *channel,
-    Dimensions   *dimensions,
-    ThermalCell  *thermalcells,
-    CellIndex_t   layer_index,
-    SystemMatrix  system_matrix
-)
-{
-# ifdef PRINT_SYSTEM_MATRIX
-    fprintf (stderr,
-        "(l %2d) fill_system_matrix_channel %s \n",
-        layer_index, channel->WallMaterial->Id) ;
-# endif
-
-    if (channel->ChannelModel == TDICE_CHANNEL_MODEL_MC_4RM)
-    {
-        FOR_EVERY_ROW (row_index, dimensions)
-        {
-            FOR_EVERY_COLUMN (column_index, dimensions)
-            {
-                if (IS_CHANNEL_COLUMN (channel->ChannelModel, column_index) == true)
-
-                    system_matrix = add_liquid_column_4rm
-
-                        (dimensions, thermalcells,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-                else
-
-                    system_matrix = add_solid_column
-
-                        (dimensions, thermalcells,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-            } // FOR_EVERY_COLUMN
-        }  // FOR_EVERY_ROW
-    }
-    else
-    {
-        // Bottom Wall
-
-        {
-            FOR_EVERY_ROW (row_index, dimensions)
-            {
-                FOR_EVERY_COLUMN (column_index, dimensions)
-                {
-                    system_matrix = add_bottom_wall_column_2rm
-
-                        (dimensions, thermalcells,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-                } // FOR_EVERY_COLUMN
-            }  // FOR_EVERY_ROW
-        }
-
-        layer_index++ ;
-
-        // Virtual Wall
-        {
-            FOR_EVERY_ROW (row_index, dimensions)
-            {
-                FOR_EVERY_COLUMN (column_index, dimensions)
-                {
-                    system_matrix = add_virtual_wall_column_2rm
-
-                        (dimensions, thermalcells, channel->ChannelModel,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-                } // FOR_EVERY_COLUMN
-            }  // FOR_EVERY_ROW
-        }
-
-        layer_index++ ;
-
-        // Channel for 2RM
-
-        {
-            FOR_EVERY_ROW (row_index, dimensions)
-            {
-                FOR_EVERY_COLUMN (column_index, dimensions)
-                {
-                    system_matrix = add_liquid_column_2rm
-
-                        (dimensions, thermalcells,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-                } // FOR_EVERY_COLUMN
-            }  // FOR_EVERY_ROW
-        }
-
-        layer_index++ ;
-
-        // Top Wall
-        {
-            FOR_EVERY_ROW (row_index, dimensions)
-            {
-                FOR_EVERY_COLUMN (column_index, dimensions)
-                {
-                    system_matrix = add_top_wall_column_2rm
-
-                        (dimensions, thermalcells,
-                         layer_index, row_index, column_index, system_matrix) ;
-
-                } // FOR_EVERY_COLUMN
-            }  // FOR_EVERY_ROW
-        }
-    }
-
-    return system_matrix ;
+    return C ;
 }
 
 /******************************************************************************/
 
 Temperature_t get_max_temperature_channel_outlet
 (
-    Channel       *channel,
-    Dimensions    *dimensions,
+    Channel_t     *channel,
+    Dimensions_t  *dimensions,
     Temperature_t *temperatures
 )
 {
@@ -792,8 +349,8 @@ Temperature_t get_max_temperature_channel_outlet
 
 Temperature_t get_min_temperature_channel_outlet
 (
-    Channel       *channel,
-    Dimensions    *dimensions,
+    Channel_t     *channel,
+    Dimensions_t  *dimensions,
     Temperature_t *temperatures
 )
 {
@@ -819,8 +376,8 @@ Temperature_t get_min_temperature_channel_outlet
 
 Temperature_t get_avg_temperature_channel_outlet
 (
-    Channel       *channel,
-    Dimensions    *dimensions,
+    Channel_t     *channel,
+    Dimensions_t  *dimensions,
     Temperature_t *temperatures
 )
 {

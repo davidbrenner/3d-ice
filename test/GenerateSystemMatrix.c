@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -38,15 +38,19 @@
 
 #include <time.h>
 
+#include "stack_file_parser.h"
+
 #include "stack_description.h"
 #include "thermal_data.h"
 #include "analysis.h"
+#include "output.h"
 
 int main(int argc, char** argv)
 {
-    StackDescription stkd ;
-    Analysis         analysis ;
-    ThermalData      tdata ;
+    StackDescription_t stkd ;
+    Analysis_t         analysis ;
+    Output_t           output ;
+    ThermalData_t      tdata ;
 
     // Checks if there are the all the arguments
     ////////////////////////////////////////////////////////////////////////////
@@ -60,22 +64,27 @@ int main(int argc, char** argv)
     // Init StackDescription and parse the input file
     ////////////////////////////////////////////////////////////////////////////
 
-    init_stack_description (&stkd) ;
-    init_analysis          (&analysis) ;
+    stack_description_init (&stkd) ;
+    analysis_init          (&analysis) ;
+    output_init            (&output) ;
 
-    if (fill_stack_description (&stkd, &analysis, argv[1]) != 0)
+    if (parse_stack_description_file (argv[1], &stkd, &analysis, &output) != 0)
 
         return EXIT_FAILURE ;
 
     // Init thermal data and fill it using the StackDescription
     ////////////////////////////////////////////////////////////////////////////
 
-    init_thermal_data (&tdata) ;
+    thermal_data_init (&tdata) ;
 
-    if (fill_thermal_data (&tdata, &stkd, &analysis) != 0)
+    Error_t result = thermal_data_build
+
+        (&tdata, &stkd.StackElements, stkd.Dimensions, &analysis) ;
+
+    if (result != TDICE_SUCCESS)
     {
-        free_analysis          (&analysis) ;
-        free_stack_description (&stkd) ;
+        stack_description_destroy (&stkd) ;
+        output_destroy            (&output) ;
 
         return EXIT_FAILURE ;
     }
@@ -83,15 +92,15 @@ int main(int argc, char** argv)
     // Run the simulation and print the output
     ////////////////////////////////////////////////////////////////////////////
 
-    print_system_matrix (argv[2], tdata.SM_A) ;
+    system_matrix_print (tdata.SM_A, argv[2]) ;
 
 
     // free all data
     ////////////////////////////////////////////////////////////////////////////
 
-    free_thermal_data      (&tdata) ;
-    free_analysis          (&analysis) ;
-    free_stack_description (&stkd) ;
+    thermal_data_destroy      (&tdata) ;
+    stack_description_destroy (&stkd) ;
+    output_destroy            (&output) ;
 
     return EXIT_SUCCESS ;
 }

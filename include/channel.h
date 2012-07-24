@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -54,19 +54,18 @@ extern "C"
 
 #include "dimensions.h"
 #include "material.h"
-#include "system_matrix.h"
-#include "thermal_cell.h"
 
 /******************************************************************************/
 
-    /*! \struct Channel
+    /*! \struct Channel_t
      *
-     *  \brief Structure used to store data about the channel that compose the 2D/3D stack.
+     *  \brief Structure used to store data about the channel that compose
+     *         the 2D/3D stack.
      *
      *  Channel is one of the elements that can be used to build a 3d stack
      */
 
-    struct Channel
+    struct Channel_t
     {
         /*! The channel model (4rm - 2rm) */
 
@@ -106,137 +105,172 @@ extern "C"
 
         /*! The material composing the wall */
 
-        Material *WallMaterial ;
+        Material_t WallMaterial ;
 
     } ;
 
-    /*! Definition of the type Channel */
+    /*! Definition of the type Channel_t */
 
-    typedef struct Channel Channel ;
+    typedef struct Channel_t Channel_t ;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a channel to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a coolant structure with default values
      *
-     * \param channel the address of the channel to initialize
+     * \param coolant the address of the structure to initalize
      */
 
-    void init_channel (Channel *channel) ;
+    void coolant_init    (Coolant_t *coolant) ;
 
 
 
-    /*! Allocates a channel in memory and sets its fields to their default
-     *  value with #init_channel
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Channel
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void coolant_copy    (Coolant_t *dst, Coolant_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a coolant
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a coolant_init .
+     *
+     * \param coolant the address of the structure to destroy
+     */
+
+    void coolant_destroy (Coolant_t *coolant) ;
+
+
+
+    /*! Inits the fields of the \a channel structure with default values
+     *
+     * \param channel the address of the structure to initalize
+     */
+
+    void channel_init    (Channel_t *channel) ;
+
+
+
+    /*! Copies the structure \a src into \a dst , as an assignement
+     *
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure
+     * \param src the address of the right term structure
+     */
+
+    void channel_copy    (Channel_t *dst, Channel_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a channel
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a channel_init .
+     *
+     * \param channel the address of the structure to destroy
+     */
+
+    void channel_destroy (Channel_t *channel) ;
+
+
+
+    /*! Allocates memory for a structure of type Channel_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a channel_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Channel *alloc_and_init_channel (void) ;
+    Channel_t *channel_calloc ( void ) ;
 
 
-    /*! Frees the memory related to \a channel
+
+    /*! Allocates memory for a new copy of the structure \a channel
      *
-     * The parametrer \a channel must be a pointer previously obtained with
-     * #alloc_and_init_channel
+     * \param channel the address of the structure to clone
      *
-     * \param channel the address of the channel structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a channel is \c NULL
      */
 
-    void free_channel (Channel *channel) ;
+    Channel_t *channel_clone  (Channel_t *channel) ;
 
 
 
-    /*! Prints the channel as it looks in the stack file
+    /*! Frees the memory space pointed by \a channel
      *
-     * \param stream  the output stream (must be already open)
-     * \param prefix  a string to be printed as prefix at the beginning of each line
-     * \param channel the channel to print
+     * The function destroys the structure \a channel and then frees
+     * its memory. The pointer \a channel must have been returned by
+     * a previous call to \a channel_calloc or \a channel_clone .
+     *
+     * If \a channel is \c NULL, no operation is performed.
+     *
+     * \param channel the pointer to free
+     */
+
+    void channel_free (Channel_t *channel) ;
+
+
+
+    /*! Prints the channel declaration as it looks in the stack file
+     *
+     * \param channel the address of the structure to print
+     * \param stream the output stream (must be already open)
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      * \param dimensions pointer to the structure storing the dimensions
      */
 
-    void print_formatted_channel
-
-        (FILE *stream, String_t prefix, Channel *channel, Dimensions *dimensions) ;
-
-
-
-    /*! Prints detailed information about all the fields of a channel
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param channel the channel to print
-     */
-
-    void print_detailed_channel
-
-        (FILE *stream, String_t prefix, Channel *channel) ;
-
-    /*! Fills the thermal cells corresponding to a channel
-     *
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param delta_time    the time resolution of the thermal simulation
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param layer_index   offset (\# layers) of the channel within the stack
-     *  \param channel       pointer to the channel
-     */
-
-    void fill_thermal_cell_channel
+    void channel_print
     (
-        ThermalCell     *thermal_cells,
-        Time_t           delta_time,
-        Dimensions      *dimensions,
-        CellIndex_t      layer_index,
-        Channel         *channel
+        Channel_t    *channel,
+        FILE         *stream,
+        String_t      prefix,
+        Dimensions_t *dimensions
     ) ;
 
 
 
-    /*! Fills the source vector corresponding to a channel
+    /*! Returns the convective C term, depending on the type of channel and
+     *  the location of the thermal cell
      *
-     *  \param sources     pointer to the first element in the source vector
-     *  \param dimensions  pointer to the structure storing the dimensions
-     *  \param layer_index offset (\# layers) of the channel within the stack
-     *  \param channel     pointer to the channel
+     *  \param channel         pointer to the channel
+     *  \param dimensions   pointer to the structure storing the dimensions
+     *  \param layer_index  the index of the layer
+     *  \param row_index    the index of the row
+     *  \param column_index the index of the column
+     *
+     *  \return \c C , the convective term
      */
 
-    void fill_sources_channel
+    Cconv_t get_convective_term
     (
-        Source_t    *sources,
-        Dimensions  *dimensions,
-        CellIndex_t  layer_index,
-        Channel     *channel
-    ) ;
-
-
-
-    /*! Fills the system matrix
-     *
-     *  \param channel       pointer to the channel
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   offset (\# layers) of the channel within the stack
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix fill_system_matrix_channel
-    (
-        Channel      *channel,
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
+        Channel_t    *channel,
+        Dimensions_t *dimensions,
         CellIndex_t   layer_index,
-        SystemMatrix  system_matrix
+        CellIndex_t   row_index,
+        CellIndex_t   column_index
     ) ;
 
 
 
     /*! Returns the maximum temperature at the outlet of the channel
      *
-     *  \param channel       pointer to the channel
+     *  \param channel          pointer to the channel
      *  \param dimensions    pointer to the structure storing the dimensions
      *  \param temperatures  pointer to the temperature of the first thermal
      *                       cell in the layer where \a channel is placed
@@ -245,30 +279,36 @@ extern "C"
      */
 
     Temperature_t get_max_temperature_channel_outlet
-
-        (Channel *channel, Dimensions *dimensions, Temperature_t *temperatures) ;
+    (
+        Channel_t     *channel,
+        Dimensions_t  *dimensions,
+        Temperature_t *temperatures
+    ) ;
 
 
 
     /*! Returns the minimum temperature at the outlet of the channel
      *
-     *  \param channel       pointer to the channel
+     *  \param channel          pointer to the channel
      *  \param dimensions    pointer to the structure storing the dimensions
      *  \param temperatures  pointer to the temperature of the first thermal
-     *                       cell in the layer where \a channel is placed
+     *                       cell in the layer where the channel is placed
      *
      *  \return The minimum temperature at the outlet of the channel
      */
 
     Temperature_t get_min_temperature_channel_outlet
-
-        (Channel *channel, Dimensions *dimensions, Temperature_t *temperatures) ;
+    (
+        Channel_t     *channel,
+        Dimensions_t  *dimensions,
+        Temperature_t *temperatures
+    ) ;
 
 
 
     /*! Returns the average temperature at the outlet of the channel
      *
-     *  \param channel       pointer to the channel
+     *  \param channel          pointer to the channel
      *  \param dimensions    pointer to the structure storing the dimensions
      *  \param temperatures  pointer to the temperature of the first thermal
      *                       cell in the layer where \a channel is placed
@@ -277,8 +317,11 @@ extern "C"
      */
 
     Temperature_t get_avg_temperature_channel_outlet
-
-        (Channel *channel, Dimensions *dimensions, Temperature_t *temperatures) ;
+    (
+        Channel_t     *channel,
+        Dimensions_t  *dimensions,
+        Temperature_t *temperatures
+    ) ;
 
 /******************************************************************************/
 

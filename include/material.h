@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -54,28 +54,22 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct Material
+    /*! \struct Material_t
      *
-     *  \brief Structure used to store data about the materials that compose the 2D/3D stack.
+     *  \brief Structure used to store data about the materials that compose
+     *         the 2D/3D stack.
      *
-     *  Materials are used when declaring layers composing a die or the
+     *  Material_ts are used when declaring layers composing a die or the
      *  stack or when declaring the properties of the walls in a channel.
      */
 
-    struct Material
+    struct Material_t
     {
         /*!
          * The identifier used to refer to the material in the stack file
          */
 
         String_t Id ;
-
-        /*!
-         * To know, after the parsing of a stack file, if a
-         * material has been declared but never used
-         */
-
-        Quantity_t Used ;
 
         /*!
          * The volume-specific heat capacity of the material,
@@ -90,132 +84,115 @@ extern "C"
          */
 
         SolidTC_t ThermalConductivity ;
-
-        /*!
-         * Pointer to collect materials in a linked list
-         */
-
-        struct Material *Next ;
     } ;
 
-    /*! Definition of the type Material
+    /*! Definition of the type Material_t
      */
 
-    typedef struct Material Material ;
+    typedef struct Material_t Material_t ;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a material to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a material structure with default values
      *
-     * \param material the address of the material to initialize
+     * \param material the address of the structure to initalize
      */
 
-    void init_material (Material *material) ;
+    void material_init (Material_t *material) ;
 
 
 
-    /*! Allocates a Material in memory and sets its fields to their default
-     *  value with \c init_material
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Material
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void material_copy (Material_t *dst, Material_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a material
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a material_init .
+     *
+     * \param material the address of the structure to destroy
+     */
+
+    void material_destroy (Material_t *material) ;
+
+
+
+    /*! Allocates memory for a structure of type Material_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a material_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Material *alloc_and_init_material (void) ;
+    Material_t *material_calloc ( void ) ;
 
 
 
-    /*! Frees the memory related to \a material
+    /*! Allocates memory for a new copy of the structure \a material
      *
-     * The parametrer \a material must be a pointer previously obtained with
-     * \c alloc_and_init_material
+     * \param material the address of the structure to clone
      *
-     * \param material the address of the material structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a material is \c NULL
      */
 
-    void free_material (Material *material) ;
+    Material_t *material_clone (Material_t *material) ;
 
 
 
-    /*! Frees a list of materials
+    /*! Frees the memory space pointed by \a material
      *
-     * If frees, calling \c free_material, the material pointed by the
-     * parameter \a list and all the materials it finds following the
-     * linked list throught the field Material::Next.
+     * The function destroys the structure \a material and then frees
+     * its memory. The pointer \a material must have been returned by
+     * a previous call to \a material_calloc or \a material_clone .
      *
-     * \param list the pointer to the first elment in the list to be freed
+     * If \a material is \c NULL, no operation is performed.
+     *
+     * \param material the pointer to free
      */
 
-    void free_materials_list (Material *list) ;
+    void material_free (Material_t *material) ;
 
 
 
-    /*! Searches for a Material in a linked list of materials.
+    /*! Tests if two materials have the same Id
      *
-     * Id based search of a Material structure in a list.
+     * \param material the first material
+     * \param other the second material
      *
-     * \param list the pointer to the list
-     * \param id   the identifier of the material to be found
-     *
-     * \return the address of a Material, if founded
-     * \return \c NULL if the search fails
+     * \return \c TRUE if \a material and \a other have the same Id
+     * \return \c FALSE otherwise
      */
 
-    Material *find_material_in_list (Material *list, String_t id) ;
+    bool material_same_id (Material_t *material, Material_t *other) ;
 
 
 
-    /*! Prints the material as it looks in the stack file
+    /*! Prints the material declaration as it looks in the stack file
      *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param material the material to print
-     */
-
-    void print_formatted_material
-
-         (FILE *stream, String_t prefix, Material *material) ;
-
-
-
-    /*! Prints a list of materials as they look in the stack file
-     *
+     * \param material the address of the structure to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first material in the list
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      */
 
-    void print_formatted_materials_list
-
-         (FILE *stream, String_t prefix, Material *list) ;
-
-
-
-    /*! Prints detailed information about all the fields of a material
-     *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param material the material to print
-     */
-
-    void print_detailed_material
-
-         (FILE *stream, String_t prefix, Material *material) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of the materials
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list the pointer to the first material in the list
-     */
-
-    void print_detailed_materials_list
-
-         (FILE *stream, String_t prefix, Material *list) ;
+    void material_print (Material_t *material, FILE *stream, String_t prefix) ;
 
 /******************************************************************************/
 

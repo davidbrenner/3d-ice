@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -43,119 +43,229 @@
 
 /******************************************************************************/
 
-void init_powers_queue (PowersQueue *powers_queue)
+void powers_queue_init (PowersQueue_t *pqueue)
 {
-    powers_queue->Head   = NULL ;
-    powers_queue->Tail   = NULL ;
-    powers_queue->Length = 0u ;
+    pqueue->Capacity = (Quantity_t) 0u ;
+    pqueue->Memory   = NULL ;
+    pqueue->Size     = (Quantity_t) 0u ;
+    pqueue->End      = (Quantity_t) 0u ;
+    pqueue->Start    = (Quantity_t) 0u ;
 }
 
 /******************************************************************************/
 
-PowersQueue *alloc_and_init_powers_queue (void)
+void powers_queue_build (PowersQueue_t *pqueue, Quantity_t capacity)
 {
-    PowersQueue *powers_queue = (PowersQueue *) malloc (sizeof(PowersQueue)) ;
+    if (pqueue == NULL)    return ;
 
-    if (powers_queue != NULL)
+    powers_queue_destroy (pqueue) ;
 
-        init_powers_queue (powers_queue) ;
+    pqueue->Memory = (Power_t *) calloc (capacity, sizeof (Power_t)) ;
 
-    return powers_queue ;
-}
-
-/******************************************************************************/
-
-void free_powers_queue (PowersQueue *powers_queue)
-{
-    while (! is_empty_powers_queue(powers_queue))
-
-        pop_from_powers_queue(powers_queue) ;
-
-    FREE_POINTER (free, powers_queue) ;
-}
-
-/******************************************************************************/
-
-void print_detailed_powers_queue
-(
-    FILE        *stream,
-    String_t     prefix,
-    PowersQueue *powers_queue
-)
-{
-    fprintf(stream, "%s [%d] ", prefix, powers_queue->Length) ;
-
-    PowerNode *tmp = NULL ;
-    for (tmp = powers_queue->Head ; tmp != NULL ; tmp = tmp->Next)
-
-        fprintf(stream, "%6.4f ", tmp->Value) ;
-
-    fprintf(stream, "\n") ;
-}
-
-/******************************************************************************/
-
-void print_formatted_powers_queue (FILE *stream, PowersQueue *powers_queue)
-{
-    PowerNode *tmp = NULL ;
-    for (tmp = powers_queue->Head ; tmp != NULL ; tmp = tmp->Next)
-
-        fprintf(stream, "%6.4f ", tmp->Value) ;
-}
-
-/******************************************************************************/
-
-bool is_empty_powers_queue (PowersQueue *powers_queue)
-{
-    return (powers_queue->Length == 0) ;
-}
-
-/******************************************************************************/
-
-void put_into_powers_queue (PowersQueue *powers_queue, Power_t power)
-{
-    PowerNode *tmp = powers_queue->Tail ;
-
-    powers_queue->Tail = malloc (sizeof(PowerNode)) ;
-
-    if ( powers_queue->Tail == NULL )
+    if (pqueue->Memory == NULL)
     {
-        fprintf (stderr, "malloc power node error !!\n") ;
+        fprintf (stderr, "Malloc power queue error\n") ;
+
         return ;
     }
 
-    powers_queue->Tail->Value = power ;
-    powers_queue->Tail->Next  = NULL ;
+    pqueue->Capacity = capacity ;
+}
 
-    if (powers_queue->Head == NULL)
+/******************************************************************************/
 
-        powers_queue->Head = powers_queue->Tail ;
+void powers_queue_destroy (PowersQueue_t *pqueue)
+{
+    if (pqueue->Memory != NULL)
 
+        free (pqueue->Memory) ;
+
+    powers_queue_init (pqueue) ;
+}
+
+/******************************************************************************/
+
+void powers_queue_copy (PowersQueue_t *dst, PowersQueue_t *src)
+{
+    if (dst->Capacity < src->Capacity || dst->Memory == NULL)
+    {
+        powers_queue_build (dst, src->Capacity) ;
+    }
     else
+    {
+        dst->Size  = (Quantity_t) 0u ;
+        dst->Start = (Quantity_t) 0u ;
+        dst->End   = (Quantity_t) 0u ;
+    }
 
-        tmp->Next = powers_queue->Tail ;
 
-    powers_queue->Length++;
+    Quantity_t index = src->Start ;
+
+    if (index == src->End)
+    {
+        put_into_powers_queue (dst, src->Memory [index]) ;
+
+        index = (index + 1) % src->Capacity ;
+    }
+
+    while (index != src->End)
+    {
+        put_into_powers_queue (dst, src->Memory [index]) ;
+
+        index = (index + 1) % src->Capacity ;
+    }
 }
 
 /******************************************************************************/
 
-Power_t get_from_powers_queue (PowersQueue *powers_queue)
+PowersQueue_t *powers_queue_calloc  ( void )
 {
-    return powers_queue->Head->Value ;
+    PowersQueue_t *pqueue = (PowersQueue_t *) malloc (sizeof(PowersQueue_t)) ;
+
+    if (pqueue != NULL)
+
+        powers_queue_init (pqueue) ;
+
+    return pqueue ;
 }
 
 /******************************************************************************/
 
-void pop_from_powers_queue (PowersQueue *powers_queue)
+PowersQueue_t *powers_queue_clone (PowersQueue_t *pqueue)
 {
-    PowerNode *tmp = powers_queue->Head->Next ;
+    if (pqueue == NULL)
 
-    FREE_POINTER (free, powers_queue->Head) ;
+        return NULL ;
 
-    powers_queue->Head = tmp ;
+    PowersQueue_t *newpq = powers_queue_calloc  ( ) ;
 
-    powers_queue->Length--;
+    if (newpq != NULL)
+
+        powers_queue_copy (newpq, pqueue) ;
+
+    return newpq ;
+}
+
+/******************************************************************************/
+
+void powers_queue_free (PowersQueue_t *pqueue)
+{
+    if (pqueue == NULL)
+
+        return ;
+
+    powers_queue_destroy (pqueue) ;
+
+    free (pqueue) ;
+}
+
+/******************************************************************************/
+
+void powers_queue_print
+(
+    PowersQueue_t *pqueue,
+    FILE          *stream,
+    String_t       prefix
+)
+{
+    fprintf (stream, "%s", prefix) ;
+
+    Quantity_t index = pqueue->Start ;
+
+    if (index == pqueue->End)
+    {
+        fprintf (stream, "%.3f ", pqueue->Memory [index]) ;
+
+        index = (index + 1) % pqueue->Capacity ;
+    }
+
+    while (index != pqueue->End)
+    {
+        fprintf (stream, "%.3f ", pqueue->Memory [index]) ;
+
+        index = (index + 1) % pqueue->Capacity ;
+    }
+}
+
+/******************************************************************************/
+
+bool is_empty_powers_queue (PowersQueue_t *pqueue)
+{
+    return (pqueue->Size == 0) ;
+}
+
+/******************************************************************************/
+
+bool is_full_powers_queue (PowersQueue_t *pqueue)
+{
+    return (pqueue->Size == pqueue->Capacity) ;
+}
+
+/******************************************************************************/
+
+void put_into_powers_queue (PowersQueue_t *pqueue, Power_t power)
+{
+    if (pqueue->Memory == NULL)
+    {
+        fprintf (stderr, "ERROR: put into not-built powers queue\n") ;
+
+        return ;
+    }
+
+    if (is_full_powers_queue (pqueue))
+    {
+        PowersQueue_t pq ;
+
+        powers_queue_init (&pq) ;
+
+        powers_queue_build (&pq, pqueue->Capacity * (Quantity_t) 2) ;
+
+        powers_queue_copy (&pq, pqueue) ;
+
+        Power_t *tmp = pq.Memory ;
+           pq.Memory = pqueue->Memory ;
+        pqueue->Memory = tmp ;
+
+        pqueue->Capacity = pq.Capacity ;
+        pqueue->Size     = pq.Size ;
+        pqueue->Start    = pq.Start ;
+        pqueue->End      = pq.End ;
+
+        powers_queue_destroy (&pq) ;
+    }
+
+    pqueue->Memory [pqueue->End] = power ;
+
+    pqueue->End = (pqueue->End + 1) % pqueue->Capacity ;
+
+    pqueue->Size++ ;
+}
+
+/******************************************************************************/
+
+Power_t get_from_powers_queue (PowersQueue_t *pqueue)
+{
+    if (pqueue->Memory == NULL)
+    {
+        fprintf (stderr, "ERROR: get from not-built powers queue\n") ;
+
+        return 0.0 ;
+    }
+
+    if ( is_empty_powers_queue(pqueue) )
+    {
+        fprintf (stderr, "ERROR: get from empty power queue\n") ;
+
+        return 0.0 ;
+    }
+
+    Power_t power = pqueue->Memory [pqueue->Start] ;
+
+    pqueue->Start = (pqueue->Start + 1) % pqueue->Capacity ;
+
+    pqueue->Size-- ;
+
+    return power ;
 }
 
 /******************************************************************************/

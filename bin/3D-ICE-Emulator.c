@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -38,17 +38,21 @@
 
 #include <time.h>
 
+#include "stack_file_parser.h"
+
 #include "stack_description.h"
 #include "thermal_data.h"
+#include "output.h"
 #include "analysis.h"
 
 int main(int argc, char** argv)
 {
-    StackDescription stkd ;
-    Analysis         analysis ;
-    ThermalData      tdata ;
+    StackDescription_t stkd ;
+    Analysis_t         analysis ;
+    Output_t           output ;
+    ThermalData_t      tdata ;
 
-    SimResult_t (*emulate) (ThermalData*, StackDescription*, Analysis*) ;
+    SimResult_t (*emulate) (ThermalData_t*, Dimensions_t*, Analysis_t*) ;
 
     Error_t error ;
 
@@ -66,10 +70,11 @@ int main(int argc, char** argv)
 
     fprintf (stdout, "Preparing stk data ... ") ; fflush (stdout) ;
 
-    init_stack_description (&stkd) ;
-    init_analysis          (&analysis) ;
+    stack_description_init (&stkd) ;
+    analysis_init          (&analysis) ;
+    output_init            (&output) ;
 
-    error = fill_stack_description (&stkd, &analysis, argv[1]) ;
+    error = parse_stack_description_file (argv[1], &stkd, &analysis, &output) ;
 
     if (error != TDICE_SUCCESS)    return EXIT_FAILURE ;
 
@@ -85,7 +90,8 @@ int main(int argc, char** argv)
     {
         fprintf (stderr, "unknown analysis type!\n ");
 
-        free_stack_description (&stkd) ;
+        stack_description_destroy (&stkd) ;
+        output_destroy            (&output) ;
 
         return EXIT_FAILURE ;
     }
@@ -97,13 +103,14 @@ int main(int argc, char** argv)
 
     // We use "% " as prefix for matlab compatibility (header will be a comment)
 
-    error = generate_analysis_headers (&analysis, stkd.Dimensions, "% ") ;
+    error = generate_output_headers (&output, stkd.Dimensions, (String_t)"% ") ;
 
     if (error != TDICE_SUCCESS)
     {
         fprintf (stderr, "error in initializing output files \n ");
 
-        free_stack_description (&stkd) ;
+        stack_description_destroy (&stkd) ;
+        output_destroy            (&output) ;
 
         return EXIT_FAILURE ;
     }
@@ -113,14 +120,16 @@ int main(int argc, char** argv)
 
     fprintf (stdout, "Preparing thermal data ... ") ; fflush (stdout) ;
 
-    init_thermal_data (&tdata) ;
+    thermal_data_init (&tdata) ;
 
-    error = fill_thermal_data (&tdata, &stkd, &analysis) ;
+    error = thermal_data_build
+
+        (&tdata, &stkd.StackElements, stkd.Dimensions, &analysis) ;
 
     if (error != TDICE_SUCCESS)
     {
-        free_analysis          (&analysis) ;
-        free_stack_description (&stkd) ;
+        stack_description_destroy (&stkd) ;
+        output_destroy            (&output) ;
 
         return EXIT_FAILURE ;
     }
@@ -136,7 +145,7 @@ int main(int argc, char** argv)
 
     do
     {
-        sim_result = emulate (&tdata, &stkd, &analysis) ;
+        sim_result = emulate (&tdata, stkd.Dimensions, &analysis) ;
 
         if (sim_result == TDICE_STEP_DONE || sim_result == TDICE_SLOT_DONE)
         {
@@ -144,25 +153,28 @@ int main(int argc, char** argv)
 
             fflush (stdout) ;
 
-            generate_analysis_output
-
-                (&analysis, stkd.Dimensions, tdata.Temperatures, TDICE_OUTPUT_INSTANT_STEP) ;
+            generate_output (&output, stkd.Dimensions,
+                             tdata.Temperatures, tdata.PowerGrid.Sources,
+                             get_simulated_time (&analysis),
+                             TDICE_OUTPUT_INSTANT_STEP) ;
         }
 
         if (sim_result == TDICE_SLOT_DONE)
         {
             fprintf (stdout, "\n") ;
 
-            generate_analysis_output
-
-                (&analysis, stkd.Dimensions, tdata.Temperatures, TDICE_OUTPUT_INSTANT_SLOT) ;
+            generate_output (&output, stkd.Dimensions,
+                             tdata.Temperatures, tdata.PowerGrid.Sources,
+                             get_simulated_time (&analysis),
+                             TDICE_OUTPUT_INSTANT_SLOT) ;
         }
 
     } while (sim_result != TDICE_END_OF_SIMULATION) ;
 
-    generate_analysis_output
-
-        (&analysis, stkd.Dimensions, tdata.Temperatures, TDICE_OUTPUT_INSTANT_FINAL) ;
+    generate_output (&output, stkd.Dimensions,
+                     tdata.Temperatures, tdata.PowerGrid.Sources,
+                     get_simulated_time (&analysis),
+                     TDICE_OUTPUT_INSTANT_FINAL) ;
 
     fprintf (stdout, "emulation took %.3f sec\n",
         ( (double)clock() - Time ) / CLOCKS_PER_SEC ) ;
@@ -170,9 +182,9 @@ int main(int argc, char** argv)
     // free all data
     ////////////////////////////////////////////////////////////////////////////
 
-    free_thermal_data      (&tdata) ;
-    free_analysis          (&analysis) ;
-    free_stack_description (&stkd) ;
+    thermal_data_destroy      (&tdata) ;
+    stack_description_destroy (&stkd) ;
+    output_destroy            (&output) ;
 
     return EXIT_SUCCESS ;
 }

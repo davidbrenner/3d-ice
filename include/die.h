@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -52,31 +52,24 @@ extern "C"
 
 #include "types.h"
 
-#include "dimensions.h"
 #include "floorplan.h"
-#include "layer.h"
-#include "system_matrix.h"
-#include "thermal_cell.h"
+#include "layer_list.h"
 
 /******************************************************************************/
 
-    /*! \struct Die
+    /*! \struct Die_t
      *
-     *  \brief Structure used to store data about the dies that compose the 2D/3D stack.
+     *  \brief Structure used to store data about the dies that compose
+     *         the 2D/3D stack.
      *
      *  Dies are one of the elements that can be used to build a 3d stack
      */
 
-    struct Die
+    struct Die_t
     {
         /*! The id (string) of the die */
 
         String_t Id ;
-
-        /*! To know, after the parsing of a stack file, if a
-         *  die has been declared but never used in the stack */
-
-        Quantity_t Used ;
 
         /*! The number of layer composing the die */
 
@@ -86,200 +79,126 @@ extern "C"
 
         CellIndex_t SourceLayerOffset ;
 
-        /*! Pointer to the top-most layer */
+        /*! The list of layers composing the die. The list
+         *  stores the layers in such a way that the head/begin/first
+         *  of the list points to the top most layer while the
+         *  tail/end/last points to the bottom most one. Crossing the list
+         *  in a reverse order is necessary to get layers from bottom
+         *  to top. */
 
-        Layer *TopLayer ;
+        LayerList_t Layers ;
 
-        /*! Pointer to the source layer */
+        /*! The floorplan used on the source layer */
 
-        Layer *SourceLayer ;
-
-        /*! Pointer to the bottom-most layer */
-
-        Layer *BottomLayer ;
-
-        /*! To collect dies in a linked list */
-
-        struct Die *Next ;
-
+        Floorplan_t Floorplan ;
     } ;
 
-    /*! Definition of the type Die */
+    /*! Definition of the type Die_t */
 
-    typedef struct Die Die ;
+    typedef struct Die_t Die_t ;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a die to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a die structure with default values
      *
-     * \param die the address of the die to initialize
+     * \param die the address of the structure to initalize
      */
 
-    void init_die (Die *die) ;
+    void die_init (Die_t *die) ;
 
 
 
-    /*! Allocates a die in memory and sets its fields to their default
-     *  value with \c init_die
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Die
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void die_copy (Die_t *dst, Die_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a die
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a die_init .
+     *
+     * \param die the address of the structure to destroy
+     */
+
+    void die_destroy (Die_t *die) ;
+
+
+
+    /*! Allocates memory for a structure of type Die_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a die_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Die *alloc_and_init_die (void) ;
+    Die_t *die_calloc ( void ) ;
 
 
 
-    /*! Frees the memory related to \a die
+    /*! Allocates memory for a new copy of the structure \a die
      *
-     * The parametrer \a die must be a pointer previously obtained with
-     * \c alloc_and_init_die
+     * \param die the address of the structure to clone
      *
-     * \param die the address of the die structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a die is \c NULL
      */
 
-    void free_die (Die *die) ;
+    Die_t *die_clone (Die_t *die) ;
 
 
 
-    /*! Frees a list of dies
+    /*! Frees the memory space pointed by \a die
      *
-     * If frees, calling \c free_die, the die pointed by the
-     * parameter \a list and all the dies it finds following the
-     * linked list throught the field Die::Next .
+     * The function destroys the structure \a die and then frees
+     * its memory. The pointer \a die must have been returned by
+     * a previous call to \a die_calloc or \a die_clone .
      *
-     * \param list the pointer to the first elment in the list to be freed
+     * If \a die is \c NULL, no operation is performed.
+     *
+     * \param die the pointer to free
      */
 
-    void free_dies_list (Die *list) ;
+    void die_free (Die_t *die) ;
 
 
 
-    /*! Searches for a Die in a linked list of dies.
+    /*! Tests if two dies have the same Id
      *
-     * Id based search of a Die structure in a list.
+     * \param die the first die
+     * \param other the second die
      *
-     * \param list the pointer to the list
-     * \param id   the identifier of the die to be found
-     *
-     * \return the address of a Die, if founded
-     * \return \c NULL if the search fails
+     * \return \c TRUE if \a die and \a other have the same Id
+     * \return \c FALSE otherwise
      */
 
-    Die *find_die_in_list (Die *list, String_t id) ;
+    bool die_same_id (Die_t *die, Die_t *other) ;
 
 
 
-    /*! Prints the die as it looks in the stack file
+    /*! Prints the die declaration as it looks in the stack file
      *
+     * \param die the address of the structure to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param die    the die to print
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      */
 
-    void print_formatted_die (FILE *stream, String_t prefix, Die *die) ;
-
-
-
-    /*! Prints a list of dies as they look in the stack file
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first die in the list
-     */
-
-    void print_formatted_dies_list (FILE *stream, String_t prefix, Die *list) ;
-
-
-
-    /*! Prints detailed information about all the fields of a die
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param die    the die to print
-     */
-
-    void print_detailed_die (FILE *stream, String_t prefix, Die *die) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of the dies
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first die in the list
-     */
-
-    void print_detailed_dies_list (FILE *stream, String_t prefix, Die *list) ;
-
-
-
-    /*! Fills the thermal cells corresponding to a die
-     *
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param delta_time    the time resolution of the thermal simulation
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param layer_index   offset (\# layers) of the die within the stack
-     *  \param die           pointer to the die
-     */
-
-    void fill_thermal_cell_die
-    (
-        ThermalCell *thermal_cells,
-        Time_t       delta_time,
-        Dimensions  *dimensions,
-        CellIndex_t  layer_index,
-        Die         *die
-    ) ;
-
-
-
-    /*! Fills the source vector corresponding to a die
-     *
-     *  \param sources     pointer to the first element in the source vector
-     *  \param dimensions  pointer to the structure storing the dimensions
-     *  \param layer_index offset (\# layers) of the die within the stack
-     *  \param floorplan   pointer to the floorplan placed on the source layer
-     *  \param die         pointer to the die
-     *
-     *  \return \c TDICE_SUCCESS if the source vector has been filled correctly
-     *  \return \c TDICE_FAILURE if it not possible to fill the source vector
-     *                           (at least one floorplan element with no power
-     *                            values in its queue)
-     */
-
-    Error_t fill_sources_die
-    (
-        Source_t   *sources,
-        Dimensions *dimensions,
-        CellIndex_t layer_index,
-        Floorplan  *floorplan,
-        Die        *die
-    ) ;
-
-
-
-    /*! Fills the system matrix
-     *
-     *  \param die           pointer to the die
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   offset (\# layers) of the die within the stack
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix fill_system_matrix_die
-    (
-        Die          *die,
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-        CellIndex_t   layer_index,
-        SystemMatrix  system_matrix
-    ) ;
+    void die_print (Die_t *die, FILE *stream, String_t prefix) ;
 
 /******************************************************************************/
 

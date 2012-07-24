@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -52,18 +52,15 @@ extern "C"
 
 #include "types.h"
 
-#include "dimensions.h"
-#include "inspection_point.h"
-#include "network_message.h"
-
 /******************************************************************************/
 
-    /*! \struct Analysis
+    /*! \struct Analysis_t
      *
-     *  \brief Informations about the type of thermal simulation to be run and its initial settings
+     *  \brief Informations about the type of thermal simulation to be run,
+     *         timing and its initial settings
      */
 
-    struct Analysis
+    struct Analysis_t
     {
         /*! The analysis type */
 
@@ -81,67 +78,108 @@ extern "C"
 
         Quantity_t SlotLength ;
 
-        /*! Number of steps simulated so far ... */
+        /*! Number of steps simulated */
 
         Quantity_t CurrentTime ;
 
         /*! Initial Temperature if the IC stack */
 
         Temperature_t InitialTemperature ;
-
-        /*! Pointer to the list of inspection points to print
-         *  at the end of the simulation */
-
-        InspectionPoint *InspectionPointListFinal ;
-
-        /*! Pointer to the list of inspection points to print
-         *  at the end of the time slot */
-
-        InspectionPoint *InspectionPointListSlot ;
-
-        /*! Pointer to the list of inspection points to print
-         *  at every time step */
-
-        InspectionPoint *InspectionPointListStep ;
-
     } ;
 
-    /*! Definition of the type Analysis */
+    /*! Definition of the type Analysis_t */
 
-    typedef struct Analysis Analysis ;
+    typedef struct Analysis_t Analysis_t;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a analysis to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a analysis structure with default values
      *
-     * \param analysis the address of the structure to initialize
+     * \param analysis the address of the structure to initalize
      */
 
-    void init_analysis (Analysis *analysis) ;
+    void analysis_init (Analysis_t *analysis) ;
 
 
 
-    /*! Allocates a structure Analysis in memory and sets its fields to
-     *  their default value with #init_analysis
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Analysis
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void analysis_copy (Analysis_t *dst, Analysis_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a analysis
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a analysis_init .
+     *
+     * \param analysis the address of the structure to destroy
+     */
+
+    void analysis_destroy (Analysis_t *analysis) ;
+
+
+
+    /*! Allocates memory for a structure of type Analysis_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a analysis_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Analysis *alloc_and_init_analysis (void) ;
+    Analysis_t *analysis_calloc ( void ) ;
 
 
 
-    /*! Frees the memory related to \a analysis
+    /*! Allocates memory for a new copy of the structure \a analysis
      *
-     *  \a analysis must be the address of an automatic variable
+     * \param analysis the address of the structure to clone
      *
-     * \param analysis the address of the structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a analysis is \c NULL
      */
 
-    void free_analysis (Analysis *analysis) ;
+    Analysis_t *analysis_clone (Analysis_t *analysis) ;
+
+
+
+    /*! Frees the memory space pointed by \a analysis
+     *
+     * The function destroys the structure \a analysis and then frees
+     * its memory. The pointer \a analysis must have been returned by
+     * a previous call to \a analysis_calloc or \a analysis_clone .
+     *
+     * If \a analysis is \c NULL, no operation is performed.
+     *
+     * \param analysis the pointer to free
+     */
+
+    void analysis_free (Analysis_t *analysis) ;
+
+
+
+    /*! Prints the analysis declaration as it looks in the stack file
+     *
+     * \param analysis the address of the structure to print
+     * \param stream the output stream (must be already open)
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
+     */
+
+    void analysis_print (Analysis_t *analysis, FILE *stream, String_t prefix) ;
 
 
 
@@ -151,23 +189,16 @@ extern "C"
      * \return the simulated amount of time in seconds
      */
 
-    Time_t get_simulated_time (Analysis *analysis) ;
+    Time_t get_simulated_time (Analysis_t *analysis) ;
 
 
 
-    /*! Returns the number of a specific type of insection point
+    /*! Increase the simulation time by a step
      *
-     *  \param analysis the address of the analysis structure to query
-     *  \param instant  the instant of the output (slot, step, final)
-     *  \param type     the type of the inspection point (tcell, tmap, ...)
-     *
-     *  \return the number of inspection points recorded in \a analysis
-     *  \return \c 0 if either \a instant or \a type are not known
+     * \param analysis the address of the analysis structure
      */
 
-    Quantity_t get_number_of_inspection_points
-
-        (Analysis *analysis, OutputInstant_t instant, OutputType_t type) ;
+    void increase_by_step_time (Analysis_t *analysis) ;
 
 
 
@@ -181,110 +212,8 @@ extern "C"
      * \return \c FALSE otherwise
      */
 
-    bool slot_completed (Analysis *analysis) ;
+    bool slot_completed (Analysis_t *analysis) ;
 
-
-
-    /*! Prints the analysis informations as they look in the stack file
-     *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param analysis the analysis information to print
-     */
-
-    void print_formatted_analysis
-
-        (FILE *stream, String_t prefix, Analysis *analysis) ;
-
-
-
-    /*! Prints detailed information about all the fields of analysis
-     *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param analysis the analysis information to print
-     */
-
-    void print_detailed_analysis
-
-        (FILE *stream, String_t prefix, Analysis *analysis) ;
-
-
-
-    /*! Inserts an inspection point into the corresponding queue
-     *
-     * \param analysis     pointer to the analysis structure
-     * \param inspection_point pointer to the inspection point to add
-     */
-
-    void add_inspection_point_to_analysis
-
-        (Analysis *analysis, InspectionPoint *inspection_point) ;
-
-
-
-    /*! Initializes output files for each inspection point
-     *
-     * Generates, for every inspection point, the output file and print the header
-     * If the target output file is already there, it will be overwritten.
-     *
-     * \param analysis pointer to the analysis structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
-     * \param prefix string to be printed as suffix for every line in the header
-     *
-     * \return \c TDICE_SUCCESS if the operation terminates with success
-     * \return \c TDICE_FAILURE if one of the files can not be created
-     */
-
-    Error_t generate_analysis_headers
-
-        (Analysis* analysis, Dimensions *dimensions, String_t prefix) ;
-
-
-
-    /*! Generates thermal outputs for each inspection point
-     *
-     * \param analysis pointer to the analysis structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
-     * \param temperatures pointer to the first element of the temparature array
-     * \param output_instant the instant of the output (slot, step, final)
-     *
-     * \return \c TDICE_SUCCESS if the operation terminates with success
-     * \return \c TDICE_FAILURE if one of the output cannot be generated
-     */
-
-    Error_t generate_analysis_output
-    (
-        Analysis        *analysis,
-        Dimensions      *dimensions,
-        Temperature_t   *temperatures,
-        OutputInstant_t  output_instant
-    ) ;
-
-
-
-    /*! Fills a network message with thermal outputs for a specific set of inspection points
-     *
-     * \param analysis pointer to the analysis structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
-     * \param temperatures pointer to the first element of the temparature array
-     * \param output_instant the instant of the output (slot, step, final)
-     * \param type the type of the ispection point to generate
-     * \param message the message to fill
-     *
-     * \return \c TDICE_SUCCESS if the operation terminates with success
-     * \return \c TDICE_FAILURE if one of the output cannot be generated
-     */
-
-    Error_t fill_analysis_message
-    (
-        Analysis        *analysis,
-        Dimensions      *dimensions,
-        Temperature_t   *temperatures,
-        OutputInstant_t  output_instant,
-        OutputType_t     type,
-        NetworkMessage  *message
-    ) ;
 
 /******************************************************************************/
 
@@ -292,4 +221,4 @@ extern "C"
 }
 #endif
 
-#endif /* _3DICE_CHANNEL_H_ */
+#endif /* _3DICE_ANALYSIS_H_ */

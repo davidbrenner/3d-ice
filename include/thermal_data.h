@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -53,33 +53,35 @@ extern "C"
 #include "types.h"
 
 #include "analysis.h"
-#include "stack_description.h"
+#include "stack_element_list.h"
 #include "system_matrix.h"
-#include "thermal_cell.h"
+#include "thermal_grid.h"
+#include "power_grid.h"
+#include "dimensions.h"
 
 #include "slu_ddefs.h"
 
 /******************************************************************************/
 
-    /*! \struct ThermalData
+    /*! \struct ThermalData_t
      *
      * \brief Structure to collect data to run thermal simulations
      *
      */
 
-    struct ThermalData
+    struct ThermalData_t
     {
         /*! Array containing the temperature of each thermal cell */
 
         Temperature_t *Temperatures ;
 
-        /*! Array containing the source value of each thermal cell */
+        /*! Structure storing the Thermal Grid */
 
-        Source_t *Sources ;
+        ThermalGrid_t ThermalGrid ;
 
-        /*! Array of Thermal cells */
+        /*! Structure storing the Power Grid */
 
-        ThermalCell *ThermalCells ;
+        PowerGrid_t PowerGrid ;
 
         /*! The number of cells in the 3D grid */
 
@@ -92,117 +94,82 @@ extern "C"
          * the computed result (temperatures).
          */
 
-        SystemMatrix SM_A ;
-
-        /*! SuperLU matrix A (wrapper arount our SystemMatrix SM_A )*/
-
-        SuperMatrix SLUMatrix_A ;
-
-        /*! SuperLU matrix A after the permutation */
-
-        SuperMatrix SLUMatrix_A_Permuted ;
+        SystemMatrix_t SM_A ;
 
         /*! SuperLU vector B (wrapper around the Temperatures array) */
 
         SuperMatrix SLUMatrix_B ;
-
-        /*! SuperLU matrix L after the A=LU factorization */
-
-        SuperMatrix SLUMatrix_L ;
-
-        /*! SuperLU matrix U after the A=LU factorization */
-
-        SuperMatrix SLUMatrix_U ;
-
-        /*! SuperLU structure for statistics */
-
-        SuperLUStat_t     SLU_Stat ;
-
-        /*! SuperLU structure for factorization options */
-
-        superlu_options_t SLU_Options ;
-
-        /*! SuperLU integer to code the result of the SLU routines */
-
-        int  SLU_Info ;
-
-        /*! SuperLU matrix R for permutation RAC = LU. */
-
-        int* SLU_PermutationMatrixR ;
-
-        /*! SuperLU matrix C for permutation RAC = LU. */
-
-        int* SLU_PermutationMatrixC ;
-
-        /*! SuperLU elimination tree */
-
-        int* SLU_Etree ;
-
     } ;
 
 
-    /*! Definition of the type ThermalData */
+    /*! Definition of the type ThermalData_t */
 
-    typedef struct ThermalData ThermalData ;
+    typedef struct ThermalData_t ThermalData_t ;
+
+
 
 /******************************************************************************/
 
-    /*! Sets all the fields of \a tdata to a default value (zero or \c NULL )
-     *  and configure the SLU fields to run a factorization
+
+
+    /*! Inits the fields of the \a tdata structure with default values
      *
-     * \param tdata the address of the thermal data to initialize
+     * \param tdata the address of the structure to initalize
      */
 
-    void init_thermal_data (ThermalData *tdata) ;
+    void thermal_data_init (ThermalData_t *tdata) ;
 
 
 
     /*! Allocs and initialize memory and prepares the LU factorization
      *
-     * \param tdata the address of the ThermalData to fill
-     * \param stkd  the address of the StackDescription previously filled
-     *              through the parsing of the stack file
-     * \param analysis the address of the Analysis previously filled trough
-     *                  the parsing of the stack file
+     * \param tdata       the address of the ThermalData to fill
+     * \param list       the list of stack element (bottom first)
+     * \param dimensions the dimensions of the IC
+     * \param analysis   the address of the Analysis structure
      *
      * \return \c TDICE_FAILURE if the memory allocation fails or the syatem
      *              matrix cannot be split in A=LU.
      * \return \c TDICE_SUCCESS otherwise
      */
 
-    Error_t fill_thermal_data
+    Error_t thermal_data_build
+    (
+        ThermalData_t      *tdata,
+        StackElementList_t *list,
+        Dimensions_t       *dimensions,
+        Analysis_t         *analysis
+    ) ;
 
-        (ThermalData* tdata, StackDescription* stkd, Analysis *analysis) ;
 
 
-
-    /*! Frees the memory related to \a tdata
+    /*! Destroys the content of the fields of the structure \a tdata
      *
-     * The parametrer \a tdata must be the address of a static variable
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a thermal_data_init .
      *
-     * \param tdata the address of the ThermalData structure to free
+     * \param tdata the address of the structure to destroy
      */
 
-    void free_thermal_data  (ThermalData* tdata) ;
+    void thermal_data_destroy  (ThermalData_t *tdata) ;
 
 
 
     /*! Reset the thermal state to the initial temperature
      *
-     * \param tdata    the address of the ThermalData structure to reset
+     * \param tdata     the address of the ThermalData structure to reset
      * \param analysis the address of the Analysis structure related to \a tdata
      */
 
-    void reset_thermal_state (ThermalData *tdata, Analysis *analysis) ;
+    void reset_thermal_state (ThermalData_t *tdata, Analysis_t *analysis) ;
 
 
 
     /*! Simulates a time step
      *
-     * \param tdata     address of the ThermalData structure
-     * \param stkd      address of the StackDescription structure used to
-     *                  fill the content of \a tdata and \a analysys
-     * \param analysis  address of the Analysis structure
+     * \param tdata           the address of the ThermalData to fill
+     * \param dimensions     the dimensions of the IC
+     * \param analysis       the address of the Analysis structure
      *
      * \return \c TDICE_WRONG_CONFIG if the parameters refers to a steady
      *                               state simulation
@@ -216,17 +183,19 @@ extern "C"
      */
 
     SimResult_t emulate_step
-
-        (ThermalData *tdata, StackDescription *stkd, Analysis *analysis) ;
+    (
+        ThermalData_t  *tdata,
+        Dimensions_t   *dimensions,
+        Analysis_t     *analysis
+    ) ;
 
 
 
     /*! Simulates a time slot
      *
-     * \param tdata     address of the ThermalData structure
-     * \param stkd      address of the StackDescription structure used to
-     *                  fill the content of \a tdata and \a analysys
-     * \param analysis  address of the Analysis structure
+     * \param tdata           the address of the ThermalData to fill
+     * \param dimensions     the dimensions of the IC
+     * \param analysis       the address of the Analysis structure
      *
      * \return \c TDICE_WRONG_CONFIG if the parameters refers to a steady
      *                               state simulation
@@ -237,17 +206,19 @@ extern "C"
      */
 
     SimResult_t emulate_slot
-
-        (ThermalData *tdata, StackDescription *stkd, Analysis *analysis) ;
+    (
+        ThermalData_t  *tdata,
+        Dimensions_t   *dimensions,
+        Analysis_t     *analysis
+    ) ;
 
 
 
     /*! Execute steady state simulation
      *
-     * \param tdata     address of the ThermalData structure
-     * \param stkd      address of the StackDescription structure used to
-     *                  fill the content of \a tdata and \a analysys
-     * \param analysis  address of the Analysis structure
+     * \param tdata           the address of the ThermalData to fill
+     * \param dimensions     the dimensions of the IC
+     * \param analysis       the address of the Analysis structure
      *
      * \return \c TDICE_WRONG_CONFIG if the parameters refers to a transient
      *                               simulation
@@ -258,20 +229,24 @@ extern "C"
      */
 
     SimResult_t emulate_steady
-
-        (ThermalData *tdata, StackDescription *stkd, Analysis *analysis) ;
+    (
+        ThermalData_t  *tdata,
+        Dimensions_t   *dimensions,
+        Analysis_t     *analysis
+    ) ;
 
 
 
     /*! Update the flow rate
      *
      * Sets the new value in the Channel structure, re-fill the system
-     * matrix A and then execute the factorization A=LU again. If this
+     * matrix A and then execute the factorization A=LU again. If tdata
      * succeeds then the source vector will be upadted with the new inlet
      * source value.
      *
      * \param tdata address of the ThermalData structure
-     * \param stkd  address of the StackDescription structure
+     * \param dimensions the dimensions of the IC
+     * \param analysis address of the Analisys structure
      * \param new_flow_rate the new flow rate (in ml/min)
      *
      * \return \c TDICE_FAILURE if the syatem matrix cannot be split in A=LU.
@@ -279,8 +254,12 @@ extern "C"
      */
 
     Error_t update_coolant_flow_rate
-
-        (ThermalData *tdata, StackDescription *stkd, CoolantFR_t new_flow_rate) ;
+    (
+        ThermalData_t  *tdata,
+        Dimensions_t   *dimensions,
+        Analysis_t     *analysis,
+        CoolantFR_t     new_flow_rate
+    ) ;
 
 
 
@@ -288,8 +267,8 @@ extern "C"
      *
      * Coordinates of the cell must be within the ranges
      *
-     * \param tdata        address of the ThermalData structure
-     * \param stkd         address of the StackDescription structure
+     * \param tdata address of the ThermalData structure
+     * \param dimensions the dimensions of the IC
      * \param layer_index  the index \c L of the thermal cell
      * \param row_index    the index \c R of the thermal cell
      * \param column_index the index \c C of the thermal cell
@@ -300,19 +279,20 @@ extern "C"
 
     Temperature_t get_cell_temperature
     (
-        ThermalData      *tdata,
-        StackDescription *stkd,
-        CellIndex_t       layer_index,
-        CellIndex_t       row_index,
-        CellIndex_t       column_index
+        ThermalData_t *tdata,
+        Dimensions_t  *dimensions,
+        CellIndex_t    layer_index,
+        CellIndex_t    row_index,
+        CellIndex_t    column_index
     ) ;
 
 
 
     /*! Generate a text file with the thermal map of a stack element
      *
-     * \param tdata     address of the ThermalData structure
-     * \param stkd      address of the StackDescription structure
+     * \param tdata address of the ThermalData structure
+     * \param list  the list of stack element (bottom first)
+     * \param dimensions the dimensions of the IC
      * \param stack_element_id the id of the stack element as it appears in the
                         stack file
      * \param file_name the path of the file to be generated
@@ -324,10 +304,11 @@ extern "C"
 
     Error_t print_thermal_map
     (
-        ThermalData      *tdata,
-        StackDescription *stkd,
-        String_t          stack_element_id,
-        String_t          file_name
+        ThermalData_t      *tdata,
+        StackElementList_t *list,
+        Dimensions_t       *dimensions,
+        String_t            stack_element_id,
+        String_t            file_name
     ) ;
 
 /******************************************************************************/

@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -83,79 +83,6 @@ extern "C"
      */
 
 #   define PARALLEL(x,y) (((x) * (y)) / ((x) + (y)))
-
-/******************************************************************************/
-/******************************************************************************/
-/******************************************************************************/
-
-    /*! \def FREE_POINTER(function,pointer)
-     *
-     * Applies \a function to \a pointer to free memory and sets
-     * \a pointer to \c NULL
-     */
-
-#   define FREE_POINTER(function, pointer) \
-                                           \
-        do { function (pointer) ; pointer = NULL ; } while (0)
-
-
-
-    /*! \def FREE_LIST(type,list,free_function)
-     *
-     * Frees a linked \a list of objects having type \a type using the function
-     * \a free_function . The list must be built throught a pointer called
-     * \c Next
-     */
-
-#   define FREE_LIST(type, list, free_function)      \
-                                                     \
-        do                                           \
-        {                                            \
-            type* next = NULL ;                      \
-            for ( ; list != NULL ; list = next)      \
-            {                                        \
-                next = list->Next ;                  \
-                FREE_POINTER (free_function, list) ; \
-            }                                        \
-        } while (0)                                  \
-
-
-
-    /*! \def JOIN_ELEMENTS(first,second)
-     *
-     * Joins two elements to make a double-linked list. The elements \a first
-     * and \a second will be connected through the pointers \c Next and \c Prev
-     */
-
-#   define JOIN_ELEMENTS(first, second) \
-                                        \
-        do { first->Next = second ; second->Prev = first ; } while (0)
-
-
-
-    /*! \def FOR_EVERY_ELEMENT_IN_LIST_NEXT(type,index,list)
-     *
-     * Crosses a linked \a list of objects having type \a type
-     * following the pointer \a Next.
-     */
-
-#   define FOR_EVERY_ELEMENT_IN_LIST_NEXT(type, index, list)      \
-                                                                  \
-        type* index ;                                             \
-        for (index = list ; index != NULL ; index = index->Next)
-
-
-
-    /*! \def FOR_EVERY_ELEMENT_IN_LIST_PREV(type,index,list)
-     *
-     * Crosses a linked \a list of objects having type \a type
-     * following the pointer \a Prev.
-     */
-
-#   define FOR_EVERY_ELEMENT_IN_LIST_PREV(type, index, list)      \
-                                                                  \
-        type* index ;                                             \
-        for (index = list ; index != NULL ; index = index->Prev)
 
 /******************************************************************************/
 /******************************************************************************/

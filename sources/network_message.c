@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -43,9 +43,9 @@
 
 /******************************************************************************/
 
-void init_network_message (NetworkMessage *message)
+void network_message_init (NetworkMessage_t *message)
 {
-    message->Memory    = calloc (MESSAGE_LENGTH, sizeof (MessageWord_t)) ;
+    message->Memory    = (MessageWord_t *) calloc (MESSAGE_LENGTH, sizeof (MessageWord_t)) ;
 
     message->MaxLength = MESSAGE_LENGTH ;
 
@@ -58,9 +58,11 @@ void init_network_message (NetworkMessage *message)
 
 /******************************************************************************/
 
-void free_network_message (NetworkMessage *message)
+void network_message_destroy (NetworkMessage_t *message)
 {
-    FREE_POINTER (free, message->Memory) ;
+    if (message->Memory != NULL)
+
+        free (message->Memory) ;
 
     message->Memory    = NULL ;
     message->MaxLength = 0 ;
@@ -71,9 +73,9 @@ void free_network_message (NetworkMessage *message)
 
 /******************************************************************************/
 
-void increase_message_memory (NetworkMessage *message, Quantity_t new_size)
+void increase_message_memory (NetworkMessage_t *message, Quantity_t new_size)
 {
-    MessageWord_t *tmp = calloc (new_size, sizeof(MessageWord_t)) ;
+    MessageWord_t *tmp = (MessageWord_t *) calloc (new_size, sizeof(MessageWord_t)) ;
 
     memcpy (tmp, message->Memory, message->MaxLength * sizeof(MessageWord_t)) ;
 
@@ -88,7 +90,7 @@ void increase_message_memory (NetworkMessage *message, Quantity_t new_size)
 
 /******************************************************************************/
 
-void build_message_head (NetworkMessage *message, MessageType_t type)
+void build_message_head (NetworkMessage_t *message, MessageType_t type)
 {
     *message->Length = (MessageWord_t) 2u ;
 
@@ -99,8 +101,8 @@ void build_message_head (NetworkMessage *message, MessageType_t type)
 
 void insert_message_word
 (
-    NetworkMessage *message,
-    void           *word
+    NetworkMessage_t *message,
+    void             *word
 )
 {
     if (*message->Length == message->MaxLength)
@@ -118,9 +120,9 @@ void insert_message_word
 
 Error_t extract_message_word
 (
-    NetworkMessage *message,
-    void           *word,
-    Quantity_t      index
+    NetworkMessage_t *message,
+    void             *word,
+    Quantity_t        index
 )
 {
     if (index >= (message->MaxLength - 2))

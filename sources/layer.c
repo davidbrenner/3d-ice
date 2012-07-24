@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -37,193 +37,112 @@
  ******************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "layer.h"
 #include "macros.h"
 
 /******************************************************************************/
 
-void init_layer (Layer *layer)
+void layer_init (Layer_t *layer)
 {
-    layer->Height   = 0.0 ;
-    layer->Material = NULL ;
-    layer->Next     = NULL ;
-    layer->Prev     = NULL ;
+    layer->Id     = NULL ;
+    layer->Height = (CellDimension_t) 0.0 ;
+
+    material_init (&layer->Material) ;
 }
 
 /******************************************************************************/
 
-Layer *alloc_and_init_layer (void)
+void layer_copy (Layer_t *dst, Layer_t *src)
 {
-    Layer *layer = (Layer *) malloc (sizeof(Layer));
+    layer_destroy (dst) ;
+
+    dst->Id = (src->Id == NULL) ? NULL : strdup (src->Id) ;
+
+    dst->Height   = src->Height ;
+
+    material_copy (&dst->Material, &src->Material) ;
+}
+
+/******************************************************************************/
+
+void layer_destroy (Layer_t *layer)
+{
+    if (layer->Id != NULL)
+
+        free (layer->Id) ;
+
+    material_destroy (&layer->Material) ;
+
+    layer_init (layer) ;
+}
+
+/******************************************************************************/
+
+Layer_t *layer_calloc (void)
+{
+    Layer_t *layer = (Layer_t *) malloc (sizeof(Layer_t));
 
     if (layer != NULL)
 
-        init_layer (layer) ;
+        layer_init (layer) ;
 
     return layer ;
 }
 
 /******************************************************************************/
 
-void free_layer (Layer *layer)
+Layer_t *layer_clone (Layer_t *layer)
 {
-    FREE_POINTER (free, layer) ;
+    if (layer == NULL)
+
+        return NULL ;
+
+    Layer_t *newl = layer_calloc ( ) ;
+
+    if (newl != NULL)
+
+        layer_copy (newl, layer) ;
+
+    return newl ;
 }
 
 /******************************************************************************/
 
-void free_layers_list (Layer *list)
+void layer_free (Layer_t *layer)
 {
-    FREE_LIST (Layer, list, free_layer) ;
+    if (layer == NULL)
+
+        return ;
+
+    layer_destroy (layer) ;
+
+    free (layer) ;
 }
 
 /******************************************************************************/
 
-void print_formatted_layer (FILE *stream, String_t prefix, Layer *layer)
+bool layer_same_id (Layer_t *layer, Layer_t *other)
 {
-    fprintf (stream,
-        "%s %7.1f  %s ;\n",
-        prefix, layer->Height, layer->Material->Id) ;
+    return strcmp (layer->Id, other->Id) == 0 ? true : false ;
 }
 
 /******************************************************************************/
 
-void print_detailed_layer (FILE *stream, String_t prefix, Layer *layer)
+void layer_print (Layer_t *layer, FILE *stream, String_t prefix)
 {
     fprintf (stream,
-        "%slayer                   = %p\n",
-        prefix, layer) ;
+        "%slayer %s :\n",
+        prefix, layer->Id) ;
 
     fprintf (stream,
-        "%s  Height                = %.1f\n",
+        "%s   height %.1f ;\n",
         prefix, layer->Height) ;
 
     fprintf (stream,
-        "%s  Material              = %p\n",
-        prefix, layer->Material) ;
-
-    fprintf (stream,
-        "%s  Next                  = %p\n",
-        prefix, layer->Next) ;
-
-    fprintf (stream,
-        "%s  Prev                  = %p\n",
-        prefix, layer->Prev) ;
-}
-
-/******************************************************************************/
-
-void print_formatted_layers_list (FILE *stream, String_t prefix, Layer *list)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (Layer, layer, list)
-
-        print_formatted_layer (stream, prefix, layer) ;
-}
-
-/******************************************************************************/
-
-void print_detailed_layers_list (FILE *stream, String_t prefix, Layer *list)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (Layer, layer, list)
-    {
-        if (layer->Next == NULL)
-
-            break ;
-
-        print_detailed_layer (stream, prefix, layer) ;
-
-        fprintf (stream, "%s\n", prefix) ;
-    }
-
-    print_detailed_layer (stream, prefix, layer) ;
-}
-
-/******************************************************************************/
-
-void fill_thermal_cell_layer
-(
-    ThermalCell *thermal_cells,
-    Time_t       delta_time,
-    Dimensions  *dimensions,
-    CellIndex_t  layer_index,
-    Layer       *layer
-)
-{
-    void (*fill_cell)
-
-        (ThermalCell *, Time_t,
-         CellDimension_t, CellDimension_t, CellDimension_t,
-         SolidTC_t, SolidVHC_t) ;
-
-    if (IS_FIRST_LAYER (layer_index))
-
-        fill_cell = fill_solid_cell_bottom ;
-
-    else if (IS_LAST_LAYER (layer_index, dimensions))
-
-        fill_cell = fill_solid_cell_top ;
-
-    else
-
-        fill_cell = fill_solid_cell_central ;
-
-#ifdef PRINT_THERMAL_CELLS
-    CellIndex_t cell_index
-
-        = get_cell_offset_in_stack (dimensions, layer_index, 0, 0) ;
-#endif
-
-    thermal_cells += layer_index * get_number_of_columns (dimensions) ;
-
-    FOR_EVERY_COLUMN (column_index, dimensions)
-    {
-#ifdef PRINT_THERMAL_CELLS
-        fprintf (stderr,
-            "  l %2d c %4d [%7d] ",
-            layer_index, column_index, cell_index++) ;
-#endif
-
-        fill_cell (thermal_cells, delta_time,
-
-                   get_cell_length(dimensions, column_index),
-                   get_cell_width(dimensions, 0),
-                   layer->Height,
-
-                   layer->Material->ThermalConductivity,
-                   layer->Material->VolumetricHeatCapacity) ;
-
-        thermal_cells ++ ;
-    }
-}
-
-/******************************************************************************/
-
-SystemMatrix fill_system_matrix_layer
-(
-    Dimensions   *dimensions,
-    ThermalCell  *thermal_cells,
-    CellIndex_t   layer_index,
-    SystemMatrix  system_matrix
-)
-{
-#ifdef PRINT_SYSTEM_MATRIX
-    fprintf (stderr, "(l %2d) fill_system_matrix_layer \n", layer_index) ;
-#endif
-
-    FOR_EVERY_ROW (row_index, dimensions)
-    {
-        FOR_EVERY_COLUMN (column_index, dimensions)
-        {
-            system_matrix = add_solid_column
-
-                (dimensions, thermal_cells,
-                 layer_index, row_index, column_index, system_matrix) ;
-
-        } // FOR_EVERY_COLUMN
-    } // FOR_EVERY_ROW
-
-    return system_matrix ;
+        "%s   material %s ;\n",
+        prefix, layer->Material.Id) ;
 }
 
 /******************************************************************************/

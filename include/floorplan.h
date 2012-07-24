@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -53,17 +53,18 @@ extern "C"
 #include "types.h"
 
 #include "dimensions.h"
-#include "floorplan_element.h"
+#include "floorplan_matrix.h"
+#include "floorplan_element_list.h"
 #include "powers_queue.h"
 
 /******************************************************************************/
 
-    /*! \struct Floorplan
+    /*! \struct Floorplan_t
      *
      *  \brief The floorplan representing the IC as a set of floorplan elements
      */
 
-    struct Floorplan
+    struct Floorplan_t
     {
         /*! The name of the file scanned to fill the floorplan */
 
@@ -75,64 +76,117 @@ extern "C"
 
         /*! Pointer to the list of floorplan elements */
 
-        FloorplanElement *ElementsList ;
+        FloorplanElementList_t ElementsList ;
 
+        /*! Matrix that stores the surface coefficients to transform
+            power traces of each floorplan element into a source vector */
+
+        FloorplanMatrix_t SurfaceCoefficients ;
+
+        /*! Power vector to perform the mv-multiplication
+             to get the source vector */
+
+        Power_t *Bpowers ;
     } ;
 
-    /*! Definition of the type Floorplan */
+    /*! Definition of the type Floorplan_t */
 
-    typedef struct Floorplan Floorplan ;
+    typedef struct Floorplan_t Floorplan_t ;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a floorplan to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a floorplan structure with default values
      *
-     * \param floorplan the address of the flooprlan to initialize
+     * \param floorplan the address of the structure to initalize
      */
 
-    void init_floorplan (Floorplan *floorplan) ;
+    void floorplan_init (Floorplan_t *floorplan) ;
 
 
 
-    /*! Allocates a Floorplan in memory and sets its fields to their
-     *  default value with #init_floorplan
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Floorplan
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void floorplan_copy (Floorplan_t *dst, Floorplan_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a floorplan
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a florplan_init .
+     *
+     * \param floorplan the address of the structure to destroy
+     */
+
+    void floorplan_destroy (Floorplan_t *floorplan) ;
+
+
+
+    /*! Allocates memory for a structure of type Floorplan_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a floorplan_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Floorplan *alloc_and_init_floorplan (void) ;
+    Floorplan_t *floorplan_calloc (void) ;
 
 
 
-    /*! Frees the memory related to \a floorplan
+    /*! Allocates memory for a new copy of the structure \a floorplan
      *
-     * The parametrer \a floorplan must be a pointer previously
-     * obtained with #alloc_and_init_floorplan
+     * \param floorplan the address of the structure to clone
      *
-     * \param floorplan the address of the floorplan structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a floorplan is \c NULL
      */
 
-    void free_floorplan (Floorplan *floorplan) ;
+    Floorplan_t *floorplan_clone (Floorplan_t *floorplan) ;
 
 
 
-    /*! Prints detailed information about all the fields of a floorplan
+    /*! Frees the memory space pointed by \a floorplan
      *
+     * The function destroys the structure \a floorplan and then frees
+     * its memory. The pointer \a floorplan must have been returned by
+     * a previous call to \a floorplan_calloc or \a floorplan_clone .
+     *
+     * If \a floorplan is \c NULL, no operation is performed.
+     *
+     * \param floorplan the pointer to free
+     */
+
+    void floorplan_free (Floorplan_t *floorplan) ;
+
+
+
+    /*! Prints the structure of the floorplan as it looks in the floorplan file
+     *
+     * \param floorplan the address of the structure to print
      * \param stream the output stream (must be already open)
      * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param floorplan the floorplan    to print
      */
 
-    void print_detailed_floorplan (FILE *stream, String_t prefix, Floorplan *floorplan) ;
+    void floorplan_print (Floorplan_t *floorplan, FILE *stream, String_t prefix) ;
 
 
 
-    /*! Parses the file pointed by Floorplan::FileName and fills the \a floorplan structure
+    /*! Parses the floorplan file and fills the floorplan structure
      *
-     * \param floorplan  the floorplan structure to fill
+     * \param floorplan       the floorplan structure to fill
      * \param dimensions pointer to the structure storing the dimensions of the stack
      * \param file_name  path to the floorplan file to parse
      *
@@ -143,17 +197,16 @@ extern "C"
 
     Error_t fill_floorplan
 
-        (Floorplan *floorplan, Dimensions *dimensions, String_t file_name) ;
+        (Floorplan_t *floorplan, Dimensions_t *dimensions, String_t file_name) ;
 
 
 
     /*! Fills the source vector corresponding to a floorplan
      *
-     *  \param sources     pointer to the location of the source vector
-     *                     that corresponds to the South-West thermal cell
-     *                     of the layer where the floorplan is placed
-     *  \param dimensions  pointer to the structure storing the dimensions
-     *  \param floorplan   pointer to the floorplan placed on the source layer
+     *  \param floorplan    pointer to the floorplan placed on the source layer
+     *  \param sources pointer to the location of the source vector
+     *                 that corresponds to the South-West thermal cell
+     *                 of the layer where the floorplan is placed
      *
      *  \return \c TDICE_SUCCESS if the source vector has been filled correctly
      *  \return \c TDICE_FAILURE if it not possible to fill the source vector
@@ -161,23 +214,20 @@ extern "C"
      *                            values in its queue)
      */
 
-    Error_t fill_sources_floorplan
-    (
-        Source_t   *sources,
-        Dimensions *dimensions,
-        Floorplan  *floorplan
-    ) ;
+    Error_t fill_sources_floorplan (Floorplan_t *floorplan, Source_t *sources) ;
 
 
 
-    /*! Returns the total number of floorplan elements in \a floorplan
+    /*! Returns the total number of floorplan elements in the floorplan
      *
      * \param floorplan address of the Floorplan structure
      *
      * \return the total nyumber of floorplan elements in \a floorplan
      */
 
-    Quantity_t get_number_of_floorplan_elements_floorplan (Floorplan *floorplan) ;
+    Quantity_t get_number_of_floorplan_elements_floorplan
+
+        (Floorplan_t *floorplan) ;
 
 
 
@@ -187,13 +237,13 @@ extern "C"
      * \param floorplan_element_id id of the floorplan element as in the
      *                             floorplan file
      *
-     * \return \c NULL if \a floorplan_element_id does not exist in the floorplan
+     * \return \c NULL if \a floorplan_element_id does not exist
      * \return the pointer to the floorplan element \a floorplan_element_id
      */
 
-    FloorplanElement *get_floorplan_element_floorplan
+    FloorplanElement_t *get_floorplan_element
 
-        (Floorplan *floorplan, String_t floorplan_element_id) ;
+        (Floorplan_t *floorplan, String_t floorplan_element_id) ;
 
 
 
@@ -215,7 +265,7 @@ extern "C"
 
     Error_t insert_power_values_floorplan
 
-        (Floorplan *floorplan, PowersQueue *pvalues) ;
+        (Floorplan_t *floorplan, PowersQueue_t *pvalues) ;
 
 
 
@@ -238,8 +288,8 @@ extern "C"
 
     Temperature_t *get_all_max_temperatures_floorplan
     (
-        Floorplan     *floorplan,
-        Dimensions    *dimensions,
+        Floorplan_t   *floorplan,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures,
         Quantity_t    *n_floorplan_elements,
         Temperature_t *max_temperatures
@@ -256,7 +306,7 @@ extern "C"
      *                      cell in the layer where \a floorplan is placed
      *  \param n_floorplan_elements (\c OUT) the number of floorplan elements
      *  \param min_temperatures (\c IN/OUT) addres to the memory where
-     *                      temperatures will be written into.
+s     *                      temperatures will be written into.
      *
      *  \return the same address as \a min_temperatures if \a min_temperatures
      *          is not \c NULL.
@@ -266,8 +316,8 @@ extern "C"
 
     Temperature_t *get_all_min_temperatures_floorplan
     (
-        Floorplan     *floorplan,
-        Dimensions    *dimensions,
+        Floorplan_t   *floorplan,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures,
         Quantity_t    *n_floorplan_elements,
         Temperature_t *min_temperatures
@@ -294,8 +344,8 @@ extern "C"
 
     Temperature_t *get_all_avg_temperatures_floorplan
     (
-        Floorplan     *floorplan,
-        Dimensions    *dimensions,
+        Floorplan_t   *floorplan,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures,
         Quantity_t    *n_floorplan_elements,
         Temperature_t *avg_temperatures

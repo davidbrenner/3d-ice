@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -59,13 +59,30 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct Tcell
+    /*! \struct InspectionPoint_t
      *
-     *  \brief Temperature of an individual thermal cell
+     *  \brief Structure containing info about the output to be printed
+     *         while simulating
      */
 
-    struct Tcell
+    struct InspectionPoint_t
     {
+        /*! The path of the file used to store the output */
+
+        String_t FileName ;
+
+        /*! The type of output instance (final, slot, step) */
+
+        OutputInstant_t Instant ;
+
+        /*! Type of Output requested (cell, flp, flpel, tmap, pmap) */
+
+        OutputType_t Type ;
+
+        /*! The kind of quantity to be measured */
+
+        OutputQuantity_t Quantity ;
+
         /*! X coordinate of the thermal cell as specified in the stack file */
 
         ChipDimension_t Xval ;
@@ -89,418 +106,179 @@ extern "C"
         /*! Column Index of the thermal cell */
 
         CellIndex_t ColumnIndex ;
+
+        /*! Pointer to the StackElement that will be used to print the outputs.
+         *  The inspection point will be applied to ipoint stack element */
+
+        StackElement_t *StackElement ;
+
+        /*! Pointer to the Floorplan Element */
+
+        FloorplanElement_t *FloorplanElement ;
     } ;
 
-    /*! Definition of the type Tcell */
+    /*! definition of the type InspectionPoint_t */
 
-    typedef struct Tcell Tcell ;
+    typedef struct InspectionPoint_t InspectionPoint_t ;
 
 
 
-    /*! Sets all the fields of \a tcell to a default value (zero or \c NULL ).
+/******************************************************************************/
+
+
+
+    /*! Inits the fields of the \a ipoint structure with default values
      *
-     * \param tcell the address of the tcell to initialize
+     * \param ipoint the address of the structure to initalize
      */
 
-    void init_tcell (Tcell *tcell) ;
+    void inspection_point_init (InspectionPoint_t *ipoint) ;
 
 
 
-    /*! Allocates a Tcell in memory and sets its fields to their default
-     *  value with #init_tcell
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new Tcell
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void inspection_point_copy
+
+        (InspectionPoint_t *dst, InspectionPoint_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a ipoint
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a inspection_point_init .
+     *
+     * \param ipoint the address of the structure to destroy
+     */
+
+    void inspection_point_destroy (InspectionPoint_t *ipoint) ;
+
+
+
+    /*! Allocates memory for a structure of type InspectionPoint_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a inspection_point_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    Tcell *alloc_and_init_tcell (void) ;
+    InspectionPoint_t *inspection_point_calloc (void) ;
 
 
 
-    /*! Frees the memory related to \a tcell
+    /*! Allocates memory for a new copy of the structure \a ipoint
      *
-     * The parametrer \a tcell must be a pointer previously obtained with
-     * #alloc_and_init_tcell
+     * \param ipoint the address of the structure to clone
      *
-     * \param tcell the address of the Tcell structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a ipoint is \c NULL
      */
 
-    void free_tcell (Tcell *tcell) ;
+    InspectionPoint_t *inspection_point_clone (InspectionPoint_t *ipoint) ;
 
 
 
-    /*! Prints a list of detailed information about all the fields of \a tcell
+    /*! Frees the memory space pointed by \a ipoint
      *
+     * The function destroys the structure \a ipoint and then frees
+     * its memory. The pointer \a ipoint must have been returned by
+     * a previous call to \a inspection_point_calloc or
+     * \a inspection_point_clone .
+     *
+     * If \a ipoint is \c NULL, no operation is performed.
+     *
+     * \param ipoint the pointer to free
+     */
+
+    void inspection_point_free (InspectionPoint_t *ipoint) ;
+
+
+
+    /*! Tests if two insection points generates he output into the same file
+     *
+     * \param ipoint the first inspection point
+     * \param other the second inspection point
+     *
+     * \return \c TRUE if \a ipoint and \a other have the same FileName
+     * \return \c FALSE otherwise
+     */
+
+    bool inspection_point_same_filename
+
+        (InspectionPoint_t *ipoint, InspectionPoint_t *other) ;
+
+
+
+    /*! Prints the insection point declaration as it looks in the stack file
+     *
+     * \param ipoint the address of the structure to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param tcell  the address of the Tcell structure to print
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      */
 
-    void print_detailed_tcell
+    void inspection_point_print
 
-        (FILE *stream, String_t prefix, Tcell *tcell) ;
+        (InspectionPoint_t *ipoint, FILE *stream, String_t prefix) ;
 
 
 
-    /*! Aligns the thermal cell to the grid of thermal cells
+    /*! Aligns the Tcell inspection point to the grid of thermal cells
      *
-     *  The function computes the values Tcell:ActualXval, Tcell:ActualYval,
-     *  Tcell:RowIndex and Tcell:ColumnIndex while Tcell:XVal and Tcell:YVal
-     *  are set as \a xval and \a yval
+     *  The function computes the values ActualXval, ActualYval,
+     *  RowIndex and ColumnIndex while XVal and YVal are set to
+     *  \a xval and \a yval
      *
-     *  \param tcell the pointer to the Tcell to align
+     *  \param ipoint  the pointer to the Tcell inspection point to align
      *  \param xval  the requested X coordinate of the cell
      *  \param yval  the requested Y coordinate of the cell
-     *  \param dimensions pointer to the structure containing the dimensions of the IC
+     * \param dimensions the address of the dimension structure
      */
 
     void align_tcell
     (
-        Tcell           *tcell,
-        ChipDimension_t  xval,
-        ChipDimension_t  yval,
-        Dimensions      *dimensions
+        InspectionPoint_t  *ipoint,
+        ChipDimension_t     xval,
+        ChipDimension_t     yval,
+        Dimensions_t       *dimensions
     ) ;
 
-/******************************************************************************/
-/******************************************************************************/
-/******************************************************************************/
 
-    /*! \struct Tflp
+
+    /*! Checks if the inspection point has a specific set up
      *
-     *  \brief Temperature of all elements in a floorplan
+     * \param ipoint     the address of the InspectionPoint structure
+     * \param type     the type of the inspection point (tcell, tmap, ...)
+     * \param quantity the quantity to be measured (max, min, avg)
+     *
+     * \return \c true if \a ipoint has type \a type and quantity
+     *         \a quantity, \c false otherwise
      */
 
-    struct Tflp
-    {
-        /*! The kind of quantity to be measured */
-
-        OutputQuantity_t Quantity ;
-    } ;
-
-    /*! Definition of the type Tflp */
-
-    typedef struct Tflp Tflp ;
+    bool is_inspection_point
+    (
+        InspectionPoint_t *ipoint,
+        OutputType_t       type,
+        OutputQuantity_t   quantity
+    ) ;
 
 
 
-    /*! Sets all the fields of \a tflp to a default value (zero or \c NULL ).
+    /*! Generates the file in which a particular inspection point
+     *  will be printed
      *
-     * \param tflp the address of the tflp to initialize
-     */
-
-    void init_tflp (Tflp *tflp) ;
-
-
-
-    /*! Allocates a Tflp in memory and sets its fields to their default
-     *  value with #init_tflp
-     *
-     * \return the pointer to a new Tflp
-     * \return \c NULL if the memory allocation fails
-     */
-
-    Tflp *alloc_and_init_tflp (void) ;
-
-
-
-    /*! Frees the memory related to \a tflp
-     *
-     * The parametrer \a tflp must be a pointer previously obtained with
-     * #alloc_and_init_tflp
-     *
-     * \param tflp the address of the Tflp structure to free
-     */
-
-    void free_tflp (Tflp *tflp) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of \a tflp
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param tflp   the address of the Tflp structure to print
-     */
-
-    void print_detailed_tflp
-
-        (FILE *stream, String_t prefix, Tflp *tflp) ;
-
-/******************************************************************************/
-/******************************************************************************/
-/******************************************************************************/
-
-    /*! \struct Tflpel
-     *
-     * \brief Temperature of a single floorplan element
-     */
-
-    struct Tflpel
-    {
-        /*! Pointer to the Floorplan Element */
-
-        FloorplanElement *FloorplanElement ;
-
-        /*! The kind of quantity to be measured */
-
-        OutputQuantity_t Quantity ;
-    } ;
-
-    /*! Definition of the type Tflpel */
-
-    typedef struct Tflpel Tflpel ;
-
-
-
-    /*! Sets all the fields of \a tflpel to a default value (zero or \c NULL ).
-     *
-     * \param tflpel the address of the tflpel to initialize
-     */
-
-    void init_tflpel (Tflpel *tflpel) ;
-
-
-
-    /*! Allocates a Tflpel in memory and sets its fields to their default
-     *  value with #init_tflpel
-     *
-     * \return the pointer to a new Tflpel
-     * \return \c NULL if the memory allocation fails
-     */
-
-    Tflpel *alloc_and_init_tflpel (void) ;
-
-
-
-    /*! Frees the memory related to \a tflpel
-     *
-     * The parametrer \a tflpel must be a pointer previously obtained with
-     * #alloc_and_init_tflpel
-     *
-     * \param tflpel the address of the Tflpel structure to free
-     */
-
-    void free_tflpel (Tflpel *tflpel) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of \a tflpel
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param tflpel the address of the Tflpel structure to print
-     */
-
-    void print_detailed_tflpel
-
-        (FILE *stream, String_t prefix, Tflpel *tflpel) ;
-
-/******************************************************************************/
-/******************************************************************************/
-/******************************************************************************/
-
-    /*! \struct Tcoolant
-     *
-     *  \brief Temperature of the coolant when leaving a cavity
-     */
-
-    struct Tcoolant
-    {
-        /*! The kind of quantity to be measured */
-
-        OutputQuantity_t Quantity ;
-
-    } ;
-
-    /*! Definition of the type Tcoolant */
-
-    typedef struct Tcoolant Tcoolant ;
-
-
-
-    /*! Sets all the fields of \a tcoolant to a default value (zero or \c NULL ).
-     *
-     * \param tcoolant the address of the tcoolant to initialize
-     */
-
-    void init_tcoolant (Tcoolant *tcoolant) ;
-
-
-
-    /*! Allocates a Tcoolant in memory and sets its fields to their default
-     *  value with #init_tcoolant
-     *
-     * \return the pointer to a new Tcoolant
-     * \return \c NULL if the memory allocation fails
-     */
-
-    Tcoolant *alloc_and_init_tcoolant (void) ;
-
-
-
-    /*! Frees the memory related to \a tcoolant
-     *
-     * The parametrer \a tcoolant must be a pointer previously obtained with
-     * #alloc_and_init_tcoolant
-     *
-     * \param tcoolant the address of the Tcoolant structure to free
-     */
-
-    void free_tcoolant (Tcoolant *tcoolant) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of \a tcoolant
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param tcoolant the address of the Tcoolant structure to print
-     */
-
-    void print_detailed_tcoolant
-
-        (FILE *stream, String_t prefix, Tcoolant *tcoolant) ;
-
-/******************************************************************************/
-/******************************************************************************/
-/******************************************************************************/
-
-    /*! \union InspectionPoint_p
-     *
-     *  \brief A union of pointers to types that can be an instance of InspectionPoint
-     */
-
-    union InspectionPoint_p
-    {
-        Tcell    *Tcell ;     /*!< Pointer to a Tcell */
-        Tflp     *Tflp ;      /*!< Pointer to a Tflp */
-        Tflpel   *Tflpel ;    /*!< Pointer to a Tflpel */
-        Tcoolant *Tcoolant ;  /*!< Pointer to a Tcoolant */
-    } ;
-
-    /*! Definition of the type InspectionPoint_p */
-
-    typedef union InspectionPoint_p InspectionPoint_p ;
-
-/******************************************************************************/
-
-    /*! \struct InspectionPoint
-     *
-     *  \brief Structure containing info about the output to be ptrinted while simulating
-     */
-
-    struct InspectionPoint
-    {
-        /*! The path of the file used to store the output */
-
-        String_t FileName ;
-
-        /*! The type of output instance (final, slot, step) */
-
-        OutputInstant_t Instant ;
-
-        /*! Type of Output requested (cell, flp, flpel, map) */
-
-        OutputType_t Type ;
-
-        /*! Pointer to a data structure representing the type of a InspectionPoint.
-         *  This pointer must be casted depending on the value stored in
-         *  InspectionPoint::Type */
-
-        InspectionPoint_p Pointer ;
-
-        /*! Pointer to the StackElement that will be used to print the outputs.
-         *  The inspection point will be applied to this stack element */
-
-        StackElement *StackElement ;
-
-        /*! To collect inspection points in a linked list */
-
-        struct InspectionPoint *Next ;
-
-    } ;
-
-    /*! definition of the type InspectionPoint */
-
-    typedef struct InspectionPoint InspectionPoint ;
-
-
-
-    /*! Sets all the fields of \a inspection_point to a default value (zero or \c NULL ).
-     *
-     * \param inspection_point the address of the inspection point to initialize
-     */
-
-    void init_inspection_point (InspectionPoint *inspection_point) ;
-
-
-
-    /*! Allocates a InspectionPoint in memory and sets its fields to their default
-     *  value with #init_inspection_point
-     *
-     * \return the pointer to a new InspectionPoint
-     * \return \c NULL if the memory allocation fails
-     */
-
-    InspectionPoint *alloc_and_init_inspection_point (void) ;
-
-
-
-    /*! Frees the memory related to \a inspection_point
-     *
-     * The parametrer \a inspection_point must be a pointer previously obtained with
-     * #alloc_and_init_inspection_point
-     *
-     * \param inspection_point the address of the InspectionPoint structure to free
-     */
-
-    void free_inspection_point (InspectionPoint *inspection_point) ;
-
-
-
-    /*! Frees a list of inspection points
-     *
-     * If frees, calling #free_inspection_point, the inspection point pointed by the
-     * parameter \a list and all the inspection points it finds following the
-     * linked list throught the field InspectionPoint::Next .
-     *
-     * \param list the pointer to the first elment in the list to be freed
-     */
-
-    void free_inspection_point_list (InspectionPoint *list) ;
-
-
-
-    /*! Prints a list of inspection points as they look in the stack file
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first inspection point in the list
-     */
-
-    void print_formatted_inspection_point_list
-
-        (FILE *stream, String_t prefix, InspectionPoint *list) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of the inspection points
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first inspection point in the list
-     */
-
-    void print_detailed_inspection_point_list
-
-        (FILE *stream, String_t prefix, InspectionPoint *list) ;
-
-
-    /*! Generates the file in which a particular inspection point will be printed
-     *
-     * \param inspection_point the address of the InspectionPoint structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
+     * \param ipoint     the address of the InspectionPoint structure
+     * \param dimensions the address of the dimension structure
      * \param prefix string to be printed as suffix for every line in the header
      *
      *  \return FIXME
@@ -508,15 +286,16 @@ extern "C"
 
     Error_t generate_inspection_point_header
 
-        (InspectionPoint *inspection_point, Dimensions *dimensions, String_t prefix) ;
+        (InspectionPoint_t *ipoint, Dimensions_t *dimensions, String_t prefix) ;
 
 
 
     /*! Generates the output implemented by the inspection point
      *
-     * \param inspection_point the address of the InspectionPoint structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
+     * \param ipoint the address of the InspectionPoint structure
+     * \param dimensions the address of the dimension structure
      * \param temperatures pointer to the first element of the temparature array
+     * \param sources      pointer to the first element of the source array
      * \param current_time time instant of the measurement
      *
      * \return FIXME
@@ -524,29 +303,33 @@ extern "C"
 
     Error_t generate_inspection_point_output
     (
-        InspectionPoint *inspection_point,
-        Dimensions      *dimensions,
-        Temperature_t   *temperatures,
-        Time_t           current_time
+        InspectionPoint_t *ipoint,
+        Dimensions_t      *dimensions,
+        Temperature_t     *temperatures,
+        Source_t          *sources,
+        Time_t             current_time
     ) ;
 
 
 
     /*! Fills a message with the output implemented by the inspection point
      *
-     * \param inspection_point the address of the InspectionPoint structure
-     * \param dimensions pointer to the structure containing the dimensions of the IC
+     * \param ipoint the address of the InspectionPoint structure
+     * \param output_quantity the quantity to report (max, min, avg)
+     * \param dimensions the address of the dimension structure
      * \param temperatures pointer to the first element of the temparature array
+     * \param sources      pointer to the first element of the source array
      * \param message the message to fill
-
      */
 
     void fill_message_inspection_point
     (
-        InspectionPoint *inspection_point,
-        Dimensions      *dimensions,
-        Temperature_t   *temperatures,
-        NetworkMessage  *message
+        InspectionPoint_t *ipoint,
+        OutputQuantity_t   output_quantity,
+        Dimensions_t      *dimensions,
+        Temperature_t     *temperatures,
+        Source_t          *sources,
+        NetworkMessage_t  *message
     ) ;
 
 /******************************************************************************/

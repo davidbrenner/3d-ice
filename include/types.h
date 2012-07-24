@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -262,24 +262,151 @@ extern "C"
 
 /******************************************************************************/
 
+    /*! \enum HeatSinkModel_t
+     *
+     * Enumeration to collect the supported model of the heat sink
+     */
+
+    enum HeatSinkModel_t
+    {
+        TDICE_HEATSINK_MODEL_NONE = 0,               //!< Undefined type
+        TDICE_HEATSINK_MODEL_CONNECTION_TO_AMBIENT,  //!< Connection to ambient
+        TDICE_HEATSINK_MODEL_TRADITIONAL             //!< Traditional Heat Sink
+    } ;
+
+    /*! The definition of the type HeatSinkModel_t */
+
+    typedef enum HeatSinkModel_t HeatSinkModel_t ;
 
 
-    /*! \enum StackElement_t
+
+    /*! \def NUM_LAYERS_HEATSINK_CONNECTION_TO_AMBIENT
+     *
+     *  The number of layers of thermal cells needed to model the
+     * connection of the top layer to the enviroment
+     */
+
+#   define NUM_LAYERS_HEATSINK_CONNECTION_TO_AMBIENT 0
+
+    /*! \def NUM_LAYERS_HEATSINK_TRADITIONAL
+     *
+     *  The number of layers of thermal cells needed to model the
+     *  heat sink made with spreader and sink
+     */
+
+#   define NUM_LAYERS_HEATSINK_TRADITIONAL 2
+
+    /*! \def SOURCE_OFFSET_HEATSINK_CONNECTION_TO_AMBIENT
+     *
+     *  The offset (\# layers) within an heat sink of type
+     *  \a TDICE_HEATSINK_MODEL_CONNECTION_TO_AMBIENT to be added
+     *  to the offset of the stack element to locate the source layer
+     */
+
+#   define SOURCE_OFFSET_HEATSINK_CONNECTION_TO_AMBIENT 0
+
+    /*! \def SOURCE_OFFSET_HEATSINK_TRADITIONAL
+     *
+     *  The offset (\# layers) within an heat sink of type
+     *  \a TDICE_HEATSINK_MODEL_TRADITIONAL to be added to
+     *  the offset of the stack element to locate the source layer
+     */
+
+#   define SOURCE_OFFSET_HEATSINK_TRADITIONAL 1
+
+/******************************************************************************/
+
+    /*! \enum StackLayerType_t
+     *
+     * Enumeration to collect the types of layer
+     */
+
+    enum StackLayerType_t
+    {
+        /*! Undefined type */
+
+        TDICE_LAYER_NONE = 0,
+
+        /*! Solid layer (passive) */
+
+        TDICE_LAYER_SOLID,
+
+        /*! Solid layer (active) */
+
+        TDICE_LAYER_SOURCE,
+
+        /*! Solid layer (passive) connected to the environment to dissipate heat */
+
+        TDICE_LAYER_SOLID_CONNECTED_TO_AMBIENT,
+
+        /*! Solid layer (active) connected to the environment to dissipate heat */
+
+        TDICE_LAYER_SOURCE_CONNECTED_TO_AMBIENT,
+
+        /*! Spreader layer between the chip and the sink */
+
+        TDICE_LAYER_SPREADER,
+
+        /*! Sink layer between the spreader and the environment */
+
+        TDICE_LAYER_SINK,
+
+        /*! Liquid layer in Channel 4 resistors model */
+
+        TDICE_LAYER_CHANNEL_4RM,
+
+        /*! Liquid layer in Channel 2 resistors model */
+
+        TDICE_LAYER_CHANNEL_2RM,
+
+        /*! Liquid layer in inline PinFins 2 resistors model */
+
+        TDICE_LAYER_PINFINS_INLINE,
+
+        /*! Liquid layer in staggered PinFins 2 resistors model */
+
+        TDICE_LAYER_PINFINS_STAGGERED,
+
+        /*! Virtual wall layer in Channel 2rm */
+
+        TDICE_LAYER_VWALL_CHANNEL,
+
+        /*! Virtual wall layer in inline/staggered PinFins 2 rm */
+
+        TDICE_LAYER_VWALL_PINFINS,
+
+        /*! Top wall layer in Channel/PinFins 2 rm */
+
+        TDICE_LAYER_TOP_WALL,
+
+        /*! Bottom wall layer in Channel/PinFins 2 rm */
+
+        TDICE_LAYER_BOTTOM_WALL,
+    } ;
+
+    /*! The definition of the type StackLayerType_t */
+
+    typedef enum StackLayerType_t StackLayerType_t ;
+
+/******************************************************************************/
+
+    /*! \enum StackElementType_t
      *
      * Enumeration to collect the types of a stack element
      */
 
-    enum StackElement_t
+    enum StackElementType_t
     {
-        TDICE_STACK_ELEMENT_NONE = 0, //!< Undefined type
-        TDICE_STACK_ELEMENT_LAYER   , //!< Layer
-        TDICE_STACK_ELEMENT_CHANNEL , //!< Channel
-        TDICE_STACK_ELEMENT_DIE       //!< Die
+        TDICE_STACK_ELEMENT_NONE = 0,   //!< Undefined type
+        TDICE_STACK_ELEMENT_LAYER   ,   //!< Layer
+        TDICE_STACK_ELEMENT_CHANNEL ,   //!< Channel
+        TDICE_STACK_ELEMENT_DIE     ,   //!< Die
+        TDICE_STACK_ELEMENT_HEATSINK    //!< Heat Sink
     } ;
 
-    /*! The definition of the type StackElement_t */
+    /*! The definition of the type StackElementType_t */
 
-    typedef enum StackElement_t StackElement_t ;
+    typedef enum StackElementType_t StackElementType_t ;
 
 /******************************************************************************/
 
@@ -450,6 +577,7 @@ extern "C"
         TDICE_OUTPUT_TYPE_TFLP,       //!< All the element in a floorplan
         TDICE_OUTPUT_TYPE_TFLPEL,     //!< A single floorplan element
         TDICE_OUTPUT_TYPE_TMAP,       //!< The thermal map of a stack element
+        TDICE_OUTPUT_TYPE_PMAP,       //!< The power map of a die (its floorplan)
         TDICE_OUTPUT_TYPE_TCOOLANT    //!< The coolant leaving the cavity
     } ;
 
@@ -514,35 +642,77 @@ extern "C"
 
         TDICE_EXIT_SIMULATION = 0,
 
+
+
         /*! \brief Reset thermal state to initial temperature
          *
          * The client sends a message without payload :
          *
          * | 2 | TDICE_RESET_THERMAL_STATE |
          *
-         * The client sends a message without payload
          * The server resets the thermal state and does not reply
          */
 
         TDICE_RESET_THERMAL_STATE,
 
-        /*! \brief Request thermal results at a specific instant
+
+
+        /*! \brief Request a message with the thermal state at a specific instant
          *
          * The client sends a message with the following payload
          *
-         * | 4 | TDICE_RESET_THERMAL_STATE | OutputInstant_t instant | OutputType_t type |
+         * | 4 | TDICE_SEND_OUTPUT | OutputInstant_t | OutputType_t | OutputQuantity_t |
          *
-         * The server will process all the inspection point matching the parameters and
-         * will send back the following message
+         * The server will process all the inspection point (declared in the
+         * output section) matching the three parameters and will send back the
+         * following message
          *
-         * | length | TDICE_RESET_THERMAL_STATE | n_matching_inspection_points | ip 0 | ... | ip n-1 |
+         * | length | TDICE_SEND_OUTPUT | nip | ip 1 | ... | ip n |
          *
-         * The message will contain at word 0 the number of inspection points matching the
-         * request. The remaining payloas will contain temperatures according to the type of
-         * inspection point.
+         * The message will contain at word 0 the number nip of inspection points
+         * matching the request. All the ips will be inserted in the message
+         * following the same order with which they appear in the stack file.
+         * If nip is zero, the message should be discarded. Otherwise, the
+         * remaining payloas will contain temperatures according to the type
+         * of inspection point that has been requested.
+         *
+         * The content of the ips could be
+         *
+         * | Temperature |
+         *
+         * if OutputType_t is Tcell, Tflpel or Tcoolant.
+         *
+         * | nflp | T 1 | ... | T nflp |
+         *
+         * if OutputType_t is Tflp (nflp is its number of floorplan elements).
+         *
+         * | nrows | ncolumns | T 1 | ... | T (nrows x ncolumns) |
+         *
+         * if OutputType_t is Tmap.
+         *
+         * | nrows | ncolumns | S 1 | ... | S (nrows x ncolumns) |
+         *
+         * if OutputType_t is Pmap.
          */
 
-        TDICE_THERMAL_RESULTS,
+        TDICE_SEND_OUTPUT,
+
+
+
+        /*! \brief Request to print thermal state at a specific instant
+         *
+         * The client sends a message with the following payload
+         *
+         * | 4 | TDICE_PRINT_OUTPUT | OutputInstant_t |
+         *
+         * The server will process all the inspection point (declared in the
+         * output section) matching the output instant and will generate the output
+         * in their corresponding text file. The server does not reply.
+         */
+
+        TDICE_PRINT_OUTPUT,
+
+
 
         /*! \brief Request for the total number of florplan elements in the stack
          *
@@ -557,6 +727,8 @@ extern "C"
 
         TDICE_TOTAL_NUMBER_OF_FLOORPLAN_ELEMENTS,
 
+
+
         /*! \brief Insert a slot of power values into the queues and simulate the slot
          *
          * The client sends a message with the following payload
@@ -570,7 +742,39 @@ extern "C"
          * | 3 | TDICE_INSERT_POWERS_AND_SIMULATE_SLOT | SimResult_t |
          */
 
-        TDICE_INSERT_POWERS_AND_SIMULATE_SLOT
+        TDICE_INSERT_POWERS_AND_SIMULATE_SLOT,
+
+
+
+        /*! \brief Tells the server to run a slot
+         *
+         * The client sends a message with the following payload
+         *
+         * | 2 | TDICE_SIMULATE_SLOT |
+         *
+         * The server will execute emulate_slot (power values should be in the
+         * queues) and returns the state got after the simulation:
+         *
+         * | 3 | TDICE_SIMULATE_SLOT | SimResult_t |
+         */
+
+        TDICE_SIMULATE_SLOT,
+
+
+
+        /*! \brief Tells the server to run a step
+         *
+         * The client sends a message with the following payload
+         *
+         * | 2 | TDICE_SIMULATE_STEP |
+         *
+         * The server will execute emulate_step and returns the state got
+         * after the simulation:
+         *
+         * | 3 | TDICE_SIMULATE_STEP | SimResult_t |
+         */
+
+        TDICE_SIMULATE_STEP,
     } ;
 
 

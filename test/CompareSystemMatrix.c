@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -139,6 +139,9 @@ int main(int argc, char** argv)
     ////////////////////////////////////////////////////////////////////////////
 
     max_difference = 0.0 ;
+    max_ref = 0 ;
+    max_row = 0 ;
+    max_column = 0 ;
 
     for (counter = 0 ; counter != counter1 ; counter++)
     {

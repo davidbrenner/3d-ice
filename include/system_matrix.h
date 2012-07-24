@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -53,24 +53,28 @@ extern "C"
 #include "types.h"
 
 #include "dimensions.h"
-#include "thermal_cell.h"
+#include "thermal_grid.h"
+#include "analysis.h"
+
+#include "slu_ddefs.h"
 
 /******************************************************************************/
 
-    /*! \struct SystemMatrix
+    /*! \struct SystemMatrix_t
      *
-     *  \brief Structure representing the squared matrix storing the coefficients of the
-     *         linear system that is solved tu run the thermal simulation
+     *  \brief Structure representing the squared matrix storing the
+     *         coefficients of the linear system that is solved tu run
+     *         the thermal simulation
      *
      * Compressed Column Storage (CCS): the matrix stores non zero values as
      * sequences of columns.
      */
 
-    struct SystemMatrix
+    struct SystemMatrix_t
     {
 
         /*! Pointer to the array storing the column pointers.
-         *  If the matrix is nxn, then n+1 column pointer are needed.
+         *  If the matrix is nxn, then n+1 column pointers are needed.
          */
 
         CellIndex_t *ColumnPointers ;
@@ -92,234 +96,153 @@ extern "C"
 
         CellIndex_t NNz ;
 
+        /*! SuperLU matrix A (wrapper arount our SystemMatrix SM_A )*/
+
+        SuperMatrix SLUMatrix_A ;
+
+        /*! SuperLU matrix A after the permutation */
+
+        SuperMatrix SLUMatrix_A_Permuted ;
+
+        /*! SuperLU matrix L after the A=LU factorization */
+
+        SuperMatrix SLUMatrix_L ;
+
+        /*! SuperLU matrix U after the A=LU factorization */
+
+        SuperMatrix SLUMatrix_U ;
+
+        /*! SuperLU structure for statistics */
+
+        SuperLUStat_t SLU_Stat ;
+
+        /*! SuperLU structure for factorization options */
+
+        superlu_options_t SLU_Options ;
+
+        /*! SuperLU integer to code the result of the SLU routines */
+
+        int  SLU_Info ;
+
+        /*! SuperLU matrix R for permutation RAC = LU. */
+
+        int* SLU_PermutationMatrixR ;
+
+        /*! SuperLU matrix C for permutation RAC = LU. */
+
+        int* SLU_PermutationMatrixC ;
+
+        /*! SuperLU elimination tree */
+
+        int* SLU_Etree ;
     } ;
 
-    /*! Definition of the type SystemMAtrix */
+    /*! Definition of the type SystemMatrix_t */
 
-    typedef struct SystemMatrix SystemMatrix ;
+    typedef struct SystemMatrix_t SystemMatrix_t ;
+
+
 
 /******************************************************************************/
 
 
-    /*! Sets all the fields of \a system_matrix to a default value (zero or \c NULL ).
+
+    /*! Inits the fields of the \a sysmatrix structure with default values
      *
-     * \param system_matrix the address of the system matrix to initialize
+     * \param sysmatrix the address of the structure to initalize
      */
 
-    void init_system_matrix (SystemMatrix *system_matrix) ;
+    void system_matrix_init (SystemMatrix_t *sysmatrix) ;
 
 
 
     /*! Allocates memory to store indexes and coefficients of a SystemMatrix
      *
-     * \param system_matrix the address of the system matrix
-     * \param size          the dimension of the matrix
-     * \param nnz           the number of nonzeroes coeffcients
+     * \param sysmatrix the address of the system matrix
+     * \param size the dimension of the matrix
+     * \param nnz  the number of nonzeroes coeffcients
      *
      * \return \c TDICE_SUCCESS if the memory allocation succeded
      * \return \c TDICE_FAILURE if the memory allocation fails
      */
 
-    Error_t alloc_system_matrix
+    Error_t system_matrix_build
 
-        (SystemMatrix *system_matrix, CellIndex_t size, CellIndex_t nnz) ;
+        (SystemMatrix_t *sysmatrix, CellIndex_t size, CellIndex_t nnz) ;
 
 
 
-    /*! Frees the memory used to store indexes and coefficients of a system matrix
+    /*! Destroys the content of the fields of the structure \a sysmatrix
      *
-     * \param system_matrix the address of the system matrix structure
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a system_matrix_init .
+     *
+     * \param sysmatrix the address of the structure to destroy
      */
 
-    void free_system_matrix (SystemMatrix *system_matrix) ;
+    void system_matrix_destroy (SystemMatrix_t *sysmatrix) ;
 
 
 
-    /*! Generates a text file storing the nonzeroes coefficients
+    /*! Fills the system matrix
+     *
+     *  The function fills, layer by layer, all the columns
+     *  of the system matrix.
+     *
+     *  \param sysmatrix         pointer to the system matrix to fill
+     *  \param thermal_grid pointer to the thermal grid structure
+     *  \param analysis     pointer to the structure containing info
+     *                      about the type of thermal analysis
+     *  \param dimensions   pointer to the structure containing the
+     *                      dimensions of the IC
+     */
+
+    void fill_system_matrix
+    (
+        SystemMatrix_t *sysmatrix,
+        ThermalGrid_t  *thermal_grid,
+        Analysis_t     *analysis,
+        Dimensions_t   *dimensions
+    ) ;
+
+
+
+    /*! Perform the A=LU decomposition on the system matrix
+     *
+     * \param sysmatrix pointer to the (system) matrix \a A to factorize
+     *
+     * \return \c TDICE_SUCCESS if the factorization succeded
+     * \return \c TDICE_FAILURE if some error occured
+     */
+
+    Error_t do_factorization (SystemMatrix_t *sysmatrix) ;
+
+
+
+    /*! Solve the linear system b = A/b
+     *
+     * \param sysmatrix pointer to the (system) matrix \a A
+     * \param b    pointer to the input vector \a b
+     *
+     * \return \c TDICE_SUCCESS if the solution b has been found
+     * \return \c TDICE_FAILURE if some error occured
+     */
+
+    Error_t solve_sparse_linear_system (SystemMatrix_t *sysmatrix, SuperMatrix *b) ;
+
+
+
+    /*! Generates a text file storing the sparse matrix
      *
      * The file will contain one row of the form row-column-value" for each
      * zero coefficient (COO format). The first row (or column) has index 1
      * (matlab compatibile)
      *
-     * \param file_name     the name of the file to create
-     * \param system_matrix the system matrix structure
+     * \param sysmatrix      the system matrix structure
+     * \param file_name the name of the file to create
      */
 
-    void print_system_matrix (String_t file_name, SystemMatrix system_matrix) ;
-
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a solid layer
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_solid_column
-    (
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-
-        CellIndex_t   layer_index,
-        CellIndex_t   row_index,
-        CellIndex_t   column_index,
-
-        SystemMatrix  system_matrix
-    ) ;
-
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a channel layer (4rm model)
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_liquid_column_4rm
-    (
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-
-        CellIndex_t   layer_index,
-        CellIndex_t   row_index,
-        CellIndex_t   column_index,
-
-        SystemMatrix  system_matrix
-    ) ;
-
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a liquid layer
-     *  in the 2rm model (microchannels and pin fins)
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_liquid_column_2rm
-    (
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-
-        CellIndex_t   layer_index,
-        CellIndex_t   row_index,
-        CellIndex_t   column_index,
-
-        SystemMatrix  system_matrix
-    ) ;
-
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a bottom wall layer
-     *  in the 2rm model (microchannels and pin fins)
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_bottom_wall_column_2rm
-    (
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-
-        CellIndex_t   layer_index,
-        CellIndex_t   row_index,
-        CellIndex_t   column_index,
-
-        SystemMatrix  system_matrix
-    ) ;
-
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a top wall layer
-     *  in the 2rm model (microchannels and pin fins)
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_top_wall_column_2rm
-    (
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-
-        CellIndex_t   layer_index,
-        CellIndex_t   row_index,
-        CellIndex_t   column_index,
-
-        SystemMatrix  system_matrix
-    ) ;
-
-
-    /*! Fills a column of the system matrix
-     *
-     *  The column corresponds to a thermal cell in a virtual wall layer (2rm model)
-     *
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d stack
-     *  \param channel_model the model of the channel, to distinguish between
-     *                       2rm microchannel or 2rm pinfins
-     *  \param layer_index   layer index of the thermal cell
-     *  \param row_index     row index of the thermal cell
-     *  \param column_index  column index of the thermal cell
-     *  \param system_matrix copy of the system matrix structure
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix add_virtual_wall_column_2rm
-    (
-        Dimensions    *dimensions,
-        ThermalCell   *thermal_cells,
-
-        ChannelModel_t channel_model,
-
-        CellIndex_t    layer_index,
-        CellIndex_t    row_index,
-        CellIndex_t    column_index,
-
-        SystemMatrix   system_matrix
-    ) ;
+    void system_matrix_print (SystemMatrix_t sysmatrix, String_t file_name) ;
 
 /******************************************************************************/
 

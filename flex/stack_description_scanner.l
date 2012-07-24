@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -96,7 +96,7 @@
 unsigned_integer        [[:digit:]]+
 signed_integer          [+-]?[[:digit:]]+
 exponent                [eE]{signed_integer}
-double                  {signed_integer}(\.{unsigned_integer}{exponent}?)?
+double                  {signed_integer}((\.{unsigned_integer})?{exponent}?)?
 identifier              [[:alpha:]](\_|[[:alnum:]])*
 path_begin              (\.{1,2}\/|\/)?
 path                    \"{path_begin}{identifier}(\/|\.{1,2}|{identifier})*\"
@@ -130,6 +130,7 @@ path                    \"{path_begin}{identifier}(\/|\.{1,2}|{identifier})*\"
 "2rm"                        return _2RM ;
 "4rm"                        return _4RM ;
 "ambient"                    return AMBIENT ;
+"area"                       return AREA ;
 "average"                    return AVERAGE ;
 "bottom"                     return BOTTOM ;
 "capacity"                   return CAPACITY ;
@@ -138,7 +139,7 @@ path                    \"{path_begin}{identifier}(\/|\.{1,2}|{identifier})*\"
 "chip"                       return CHIP ;
 "coefficient"                return COEFFICIENT ;
 "conductivity"               return CONDUCTIVITY ;
-"conventional"               return CONVENTIONAL ;
+"connection"                 return CONNECTION ;
 "coolant"                    return COOLANT ;
 "darcy"                      return DARCY ;
 "diameter"                   return DIAMETER ;
@@ -165,12 +166,14 @@ path                    \"{path_begin}{identifier}(\/|\.{1,2}|{identifier})*\"
 "pin"                        return PIN ;
 "pinfin"                     return PINFIN ;
 "pitch"                      return PITCH ;
+"Pmap"                       return PMAP ;
 "rate"                       return RATE ;
 "side"                       return SIDE ;
 "sink"                       return SINK ;
 "slot"                       return SLOT ;
 "solver"                     return SOLVER ;
 "source"                     return SOURCE ;
+"spreader"                   return SPREADER ;
 "stack"                      return STACK ;
 "staggered"                  return STAGGERED ;
 "state"                      return STATE ;
@@ -182,6 +185,7 @@ path                    \"{path_begin}{identifier}(\/|\.{1,2}|{identifier})*\"
 "Tflp"                       return TFLP ;
 "Tflpel"                     return TFLPEL ;
 "thermal"                    return THERMAL ;
+"to"                         return TO ;
 "top"                        return TOP ;
 "Tmap"                       return TMAP ;
 "transfer"                   return TRANSFER ;

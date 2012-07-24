@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -44,261 +44,182 @@
 
 /******************************************************************************/
 
-void init_floorplan_element (FloorplanElement *floorplan_element)
+void floorplan_element_init (FloorplanElement_t *flpel)
 {
-    floorplan_element->Id               = NULL ;
-    floorplan_element->NICElements      = 0u ;
-    floorplan_element->ICElementsList   = NULL ;
-    floorplan_element->EffectiveSurface = 0u ;
-    floorplan_element->PowerValues      = NULL ;
-    floorplan_element->Next             = NULL ;
+    flpel->Id             = NULL ;
+    flpel->NICElements    = (Quantity_t) 0u ;
+
+    ic_element_list_init (&flpel->ICElements) ;
+
+    flpel->Area           = (ChipDimension_t) 0.0 ;
+    flpel->PowerValues    = NULL ;
 }
 
 /******************************************************************************/
 
-FloorplanElement *alloc_and_init_floorplan_element (void)
+void floorplan_element_copy
+(
+    FloorplanElement_t *dst,
+    FloorplanElement_t *src
+)
 {
-    FloorplanElement *floorplan_element = (FloorplanElement *)
+    floorplan_element_destroy (dst) ;
 
-        malloc (sizeof(FloorplanElement));
+    dst->Id = (src->Id == NULL) ? NULL : strdup (src->Id) ;
 
-    if (floorplan_element != NULL)
+    dst->NICElements = src->NICElements ;
+    dst->Area        = src->Area ;
 
-        init_floorplan_element(floorplan_element) ;
+    ic_element_list_copy (&dst->ICElements, &src->ICElements) ;
 
-    return floorplan_element ;
+    dst->PowerValues = powers_queue_clone (src->PowerValues) ;
+}
+
+/******************************************************************************/
+
+void floorplan_element_destroy (FloorplanElement_t *flpel)
+{
+    if (flpel->Id != NULL)
+
+        free (flpel->Id) ;
+
+    ic_element_list_destroy (&flpel->ICElements) ;
+
+    powers_queue_free (flpel->PowerValues) ;
+
+    floorplan_element_init (flpel) ;
+}
+
+/******************************************************************************/
+
+FloorplanElement_t *floorplan_element_calloc (void)
+{
+    FloorplanElement_t *flpel =
+
+        (FloorplanElement_t *) malloc (sizeof(FloorplanElement_t));
+
+    if (flpel != NULL)
+
+        floorplan_element_init (flpel) ;
+
+    return flpel ;
 }
 
 /*****************************************************************************/
 
-void free_floorplan_element (FloorplanElement *floorplan_element)
+FloorplanElement_t *floorplan_element_clone (FloorplanElement_t *flpel)
 {
-    FREE_POINTER (free,                  floorplan_element->Id) ;
-    FREE_POINTER (free_ic_elements_list, floorplan_element->ICElementsList) ;
-    FREE_POINTER (free_powers_queue,     floorplan_element->PowerValues) ;
-    FREE_POINTER (free,                  floorplan_element) ;
+    if (flpel == NULL)
+
+        return NULL ;
+
+    FloorplanElement_t *newf = floorplan_element_calloc ( ) ;
+
+    if (newf != NULL)
+
+        floorplan_element_copy (newf, flpel) ;
+
+    return newf ;
+}
+
+/*****************************************************************************/
+
+void floorplan_element_free (FloorplanElement_t *flpel)
+{
+    if (flpel == NULL)
+
+        return ;
+
+    floorplan_element_destroy (flpel) ;
+
+    free (flpel) ;
 }
 
 /******************************************************************************/
 
-void free_floorplan_elements_list (FloorplanElement *list)
-{
-    FREE_LIST (FloorplanElement, list, free_floorplan_element) ;
-}
-
-/******************************************************************************/
-
-void print_detailed_floorplan_element
+bool floorplan_element_same_id
 (
-    FILE             *stream,
-    String_t          prefix,
-    FloorplanElement *floorplan_element
+    FloorplanElement_t *flpel,
+    FloorplanElement_t *other
 )
 {
-    String_t new_prefix = (String_t)
-
-        malloc (sizeof (*new_prefix) * (5 + strlen(prefix))) ;
-
-    if (new_prefix == NULL) return ;
-
-    sprintf (new_prefix, "%s    ", prefix) ;
-
-    fprintf (stream,
-        "%sFloorplan Element           = %p\n",
-        prefix, floorplan_element) ;
-
-    fprintf (stream,
-        "%s    Id                      = %s\n",
-        prefix, floorplan_element->Id) ;
-
-    fprintf (stream,
-        "%s    NICElements             = %d\n",
-        prefix, floorplan_element->NICElements) ;
-
-    fprintf (stream,
-        "%s    ICElementsList          = %p\n",
-        prefix, floorplan_element->ICElementsList) ;
-
-    fprintf (stream, "%s\n", prefix) ;
-
-    print_detailed_ic_elements_list
-
-        (stream, new_prefix, floorplan_element->ICElementsList) ;
-
-    fprintf (stream, "%s\n", prefix) ;
-
-    fprintf (stream,
-        "%s    Id                      = %.3f\n",
-        prefix, floorplan_element->EffectiveSurface) ;
-
-    fprintf (stream,
-        "%s    PowerValues             = %p\n",
-        prefix, floorplan_element->PowerValues) ;
-
-    fprintf (stream, "%s\n", prefix) ;
-
-    print_detailed_powers_queue
-
-        (stream, new_prefix, floorplan_element->PowerValues) ;
-
-    fprintf (stream, "%s\n", prefix) ;
-
-    fprintf (stream,
-        "%s    Next                    = %p\n",
-        prefix, floorplan_element->Next) ;
-
-    FREE_POINTER (free, new_prefix) ;
+    return strcmp (flpel->Id, other->Id) == 0 ? true : false ;
 }
 
 /******************************************************************************/
 
-void print_detailed_floorplan_elements_list
+void floorplan_element_print
 (
-    FILE             *stream,
-    String_t          prefix,
-    FloorplanElement *list
-)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (FloorplanElement, flp_el, list)
-    {
-        if (flp_el->Next == NULL)
-
-            break ;
-
-        print_detailed_floorplan_element (stream, prefix, flp_el) ;
-
-        fprintf (stream, "%s\n", prefix) ;
-    }
-
-    print_detailed_floorplan_element (stream, prefix, flp_el) ;
-}
-
-/******************************************************************************/
-
-void print_formatted_floorplan_element
-(
-    FILE             *stream,
-    String_t          prefix,
-    FloorplanElement *floorplan_element
+    FloorplanElement_t *flpel,
+    FILE               *stream,
+    String_t            prefix
 )
 {
     fprintf (stream,
         "%s%s:\n",
-        prefix, floorplan_element->Id) ;
+        prefix, flpel->Id) ;
 
-    print_formatted_ic_elements_list
+    ic_element_list_print
 
-        (stream, prefix, floorplan_element->ICElementsList) ;
+        (&flpel->ICElements, stream, prefix) ;
 
     fprintf (stream,
         "%s   power values ",
         prefix) ;
 
-    print_formatted_powers_queue (stream, floorplan_element->PowerValues) ;
+    powers_queue_print (flpel->PowerValues, stream, (String_t)"") ;
 
     fprintf (stream, "\n") ;
 }
 
 /******************************************************************************/
 
-void print_formatted_floorplan_elements_list
-(
-    FILE             *stream,
-    String_t          prefix,
-    FloorplanElement *list
-)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (FloorplanElement, flp_el, list)
-    {
-        if (flp_el->Next == NULL)
-
-            break ;
-
-        print_formatted_floorplan_element (stream, prefix, flp_el) ;
-
-        fprintf (stream, "%s\n", prefix) ;
-    }
-
-    print_formatted_floorplan_element (stream, prefix, flp_el) ;
-}
-
-/******************************************************************************/
-
-Error_t fill_sources_floorplan_element
-(
-    Source_t         *sources,
-    Dimensions       *dimensions,
-    FloorplanElement *floorplan_element
-)
-{
-    if (is_empty_powers_queue (floorplan_element->PowerValues) == true)
-
-        return TDICE_FAILURE ;
-
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (ICElement, icelement, floorplan_element->ICElementsList)
-
-        fill_sources_ic_element
-
-            (sources, dimensions,
-             get_from_powers_queue (floorplan_element->PowerValues),
-             floorplan_element->EffectiveSurface,
-             icelement) ;
-
-    pop_from_powers_queue (floorplan_element->PowerValues) ;
-
-    return TDICE_SUCCESS ;
-}
-
-/******************************************************************************/
-
 Error_t insert_power_values_floorplan_element
 (
-    FloorplanElement *floorplan_element,
-    PowersQueue      *pvalues
+    FloorplanElement_t *flpel,
+    PowersQueue_t      *pvalues
 )
 {
     if (is_empty_powers_queue(pvalues) == true)
 
         return TDICE_FAILURE ;
 
-    Power_t power = get_from_powers_queue (pvalues) ;
-
-    put_into_powers_queue (floorplan_element->PowerValues, power);
-
-    pop_from_powers_queue (pvalues) ;
+    put_into_powers_queue (flpel->PowerValues, get_from_powers_queue (pvalues));
 
     return TDICE_SUCCESS ;
 }
 
 /******************************************************************************/
 
-FloorplanElement *find_floorplan_element_in_list
-(
-    FloorplanElement *list,
-    String_t          id
-)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (FloorplanElement, flp_el, list)
-    {
-        if (strcmp (flp_el->Id, id) == 0) break ;
-    }
-    return flp_el ;
-}
-
-/******************************************************************************/
-
 Temperature_t get_max_temperature_floorplan_element
 (
-    FloorplanElement *floorplan_element,
-    Dimensions       *dimensions,
-    Temperature_t    *temperatures
+    FloorplanElement_t *flpel,
+    Dimensions_t       *dimensions,
+    Temperature_t      *temperatures
 )
 {
     Temperature_t tmp, max = 0.0 ;
 
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (ICElement, icelement, floorplan_element->ICElementsList)
+    ICElement_t         *icel ;
+    ICElementListNode_t *iceln = ic_element_list_begin (&flpel->ICElements) ;
+
+    if (iceln != NULL)
     {
-        tmp = get_max_temperature_ic_element (icelement, dimensions, temperatures) ;
+        icel = ic_element_list_data (iceln) ;
+
+        max = get_max_temperature_ic_element (icel, dimensions, temperatures) ;
+    }
+    else
+
+        return max ;
+
+    for (iceln  = ic_element_list_next (iceln) ;
+         iceln != NULL ;
+         iceln = ic_element_list_next (iceln))
+    {
+        icel = ic_element_list_data (iceln) ;
+
+        tmp = get_max_temperature_ic_element (icel, dimensions, temperatures) ;
 
         if (tmp > max) max = tmp ;
     }
@@ -310,22 +231,33 @@ Temperature_t get_max_temperature_floorplan_element
 
 Temperature_t get_min_temperature_floorplan_element
 (
-    FloorplanElement *floorplan_element,
-    Dimensions       *dimensions,
-    Temperature_t    *temperatures
+    FloorplanElement_t *flpel,
+    Dimensions_t       *dimensions,
+    Temperature_t      *temperatures
 )
 {
-    Temperature_t tmp, min ;
+    Temperature_t tmp, min = 0.0 ;
 
-    min = get_min_temperature_ic_element
+    ICElement_t         *icel ;
+    ICElementListNode_t *iceln = ic_element_list_begin (&flpel->ICElements) ;
 
-        (floorplan_element->ICElementsList, dimensions, temperatures) ;
-
-    // FIXME : skip the first here ...
-
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (ICElement, icelement, floorplan_element->ICElementsList)
+    if (iceln != NULL)
     {
-        tmp = get_max_temperature_ic_element (icelement, dimensions, temperatures) ;
+        icel = ic_element_list_data (iceln) ;
+
+        min = get_min_temperature_ic_element (icel, dimensions, temperatures) ;
+    }
+    else
+
+        return min ;
+
+    for (iceln  = ic_element_list_next (iceln) ;
+         iceln != NULL ;
+         iceln = ic_element_list_next (iceln))
+    {
+        icel = ic_element_list_data (iceln) ;
+
+        tmp = get_min_temperature_ic_element (icel, dimensions, temperatures) ;
 
         if (tmp < min) min = tmp ;
     }
@@ -337,18 +269,26 @@ Temperature_t get_min_temperature_floorplan_element
 
 Temperature_t get_avg_temperature_floorplan_element
 (
-    FloorplanElement *floorplan_element,
-    Dimensions       *dimensions,
-    Temperature_t    *temperatures
+    FloorplanElement_t *flpel,
+    Dimensions_t       *dimensions,
+    Temperature_t      *temperatures
 )
 {
     Temperature_t avg = 0.0 ;
 
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (ICElement, icelement, floorplan_element->ICElementsList)
+    ICElement_t         *icel ;
+    ICElementListNode_t *iceln ;
 
-        avg += get_avg_temperature_ic_element (icelement, dimensions, temperatures) ;
+    for (iceln  = ic_element_list_begin (&flpel->ICElements) ;
+         iceln != NULL ;
+         iceln  = ic_element_list_next (iceln))
+    {
+        icel = ic_element_list_data (iceln) ;
 
-    return avg / (Temperature_t) floorplan_element->NICElements ;
+        avg += get_avg_temperature_ic_element (icel, dimensions, temperatures) ;
+    }
+
+    return avg / (Temperature_t) flpel->NICElements ;
 }
 
 /******************************************************************************/

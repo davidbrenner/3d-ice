@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -49,7 +49,7 @@
 
 /******************************************************************************/
 
-void init_socket (Socket *socket)
+void socket_init (Socket_t *socket)
 {
     socket->Id = 0 ;
 
@@ -62,11 +62,11 @@ void init_socket (Socket *socket)
 
 /******************************************************************************/
 
-Error_t open_client_socket (Socket *client)
+Error_t open_client_socket (Socket_t *csocket)
 {
-    client->Id = socket (AF_INET, SOCK_STREAM, 0) ;
+    csocket->Id = socket (AF_INET, SOCK_STREAM, 0) ;
 
-    if (client->Id < 0)
+    if (csocket->Id < 0)
     {
         perror ("ERROR :: client socket creation") ;
 
@@ -80,38 +80,38 @@ Error_t open_client_socket (Socket *client)
 
 Error_t open_server_socket
 (
-    Socket       *server,
+    Socket_t     *ssocket,
     PortNumber_t  port_number
 )
 {
-    server->Id = socket (AF_INET, SOCK_STREAM, 0) ;
+    ssocket->Id = socket (AF_INET, SOCK_STREAM, 0) ;
 
-    if (server->Id < 0)
+    if (ssocket->Id < 0)
     {
         perror ("ERROR :: server socket creation") ;
 
         return TDICE_FAILURE ;
     }
 
-    server->Address.sin_family      = AF_INET ;
-    server->Address.sin_port        = htons (port_number) ;
-    server->Address.sin_addr.s_addr = htonl (INADDR_ANY) ;
+    ssocket->Address.sin_family      = AF_INET ;
+    ssocket->Address.sin_port        = htons (port_number) ;
+    ssocket->Address.sin_addr.s_addr = htonl (INADDR_ANY) ;
 
-    if (bind (server->Id, (struct sockaddr *) &server->Address,
+    if (bind (ssocket->Id, (struct sockaddr *) &ssocket->Address,
               sizeof (struct sockaddr_in)) < 0)
     {
         perror ("ERROR :: server bind") ;
 
-        close_socket (server) ;
+        socket_close (ssocket) ;
 
         return TDICE_FAILURE ;
     }
 
-    if (listen (server->Id, 1) < 0)
+    if (listen (ssocket->Id, 1) < 0)
     {
         perror ("ERROR :: server listen") ;
 
-        close_socket (server) ;
+        socket_close (ssocket) ;
 
         return TDICE_FAILURE ;
     }
@@ -123,33 +123,33 @@ Error_t open_server_socket
 
 Error_t connect_client_to_server
 (
-    Socket       *client,
+    Socket_t     *csocket,
     String_t      host_name,
     PortNumber_t  port_number
 )
 {
-    strcpy (client->HostName, host_name) ;
+    strcpy (csocket->HostName, host_name) ;
 
-    client->PortNumber = port_number ;
+    csocket->PortNumber = port_number ;
 
-    client->Address.sin_family = AF_INET ;
-    client->Address.sin_port   = htons (port_number) ;
+    csocket->Address.sin_family = AF_INET ;
+    csocket->Address.sin_port   = htons (port_number) ;
 
-    if (inet_pton (AF_INET, host_name, &(client->Address).sin_addr) <= 0)
+    if (inet_pton (AF_INET, host_name, &(csocket->Address).sin_addr) <= 0)
     {
         perror ("ERROR :: server address creation") ;
 
-        close_socket (client) ;
+        socket_close (csocket) ;
 
         return TDICE_FAILURE ;
     }
 
-    if (connect (client->Id, (struct sockaddr *) &client->Address,
+    if (connect (csocket->Id, (struct sockaddr *) &csocket->Address,
                  sizeof (struct sockaddr_in)) < 0)
     {
         perror ("ERROR :: client to server connection") ;
 
-        close_socket (client) ;
+        socket_close (csocket) ;
 
         return TDICE_FAILURE ;
     }
@@ -159,19 +159,19 @@ Error_t connect_client_to_server
 
 /******************************************************************************/
 
-Error_t wait_for_client (Socket *server, Socket *client)
+Error_t wait_for_client (Socket_t *ssocket, Socket_t *client)
 {
     socklen_t length = sizeof (struct sockaddr_in) ;
 
     client->Id = accept
 
-        (server->Id, (struct sockaddr *) &(client->Address), &length) ;
+        (ssocket->Id, (struct sockaddr *) &(client->Address), &length) ;
 
     if (client->Id < 0)
     {
         perror ("ERROR :: server accept") ;
 
-        close_socket (server) ;
+        socket_close (ssocket) ;
 
         return TDICE_FAILURE ;
     }
@@ -183,8 +183,8 @@ Error_t wait_for_client (Socket *server, Socket *client)
     {
         perror ("ERROR :: client name translation") ;
 
-        close_socket (client) ;
-        close_socket (server) ;
+        socket_close (client) ;
+        socket_close (ssocket) ;
 
         return TDICE_FAILURE ;
     }
@@ -196,8 +196,8 @@ Error_t wait_for_client (Socket *server, Socket *client)
 
 Error_t send_message_to_socket
 (
-    Socket         *socket,
-    NetworkMessage *message
+    Socket_t         *socket,
+    NetworkMessage_t *message
 )
 {
     // length stores the total number of bytes to send
@@ -248,8 +248,8 @@ Error_t send_message_to_socket
 
 Error_t receive_message_from_socket
 (
-    Socket         *socket,
-    NetworkMessage *message
+    Socket_t         *socket,
+    NetworkMessage_t *message
 )
 {
     MessageWord_t message_length ;
@@ -315,7 +315,7 @@ Error_t receive_message_from_socket
 
 /******************************************************************************/
 
-Error_t close_socket (Socket *socket)
+Error_t socket_close (Socket_t *socket)
 {
     if (close (socket->Id) != 0)
     {

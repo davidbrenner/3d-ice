@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -42,40 +42,50 @@
 #include "types.h"
 #include "network_socket.h"
 #include "network_message.h"
+#include "stack_file_parser.h"
 #include "stack_description.h"
 #include "thermal_data.h"
 #include "analysis.h"
+#include "output.h"
 #include "powers_queue.h"
 
 int main (int argc, char** argv)
 {
-    StackDescription stkd ;
-    Analysis         analysis ;
-    ThermalData      tdata ;
+    StackDescription_t stkd ;
+    Analysis_t         analysis ;
+    Output_t           output ;
+    ThermalData_t      tdata ;
 
     Error_t error ;
 
-    Socket server_socket, client_socket ;
+    Quantity_t server_port ;
 
-    NetworkMessage request, reply ;
+    Socket_t server_socket, client_socket ;
+
+    NetworkMessage_t request, reply ;
+
+    bool headers = false ;
 
     /* Checks if all arguments are there **************************************/
 
-    if (argc != 2)
+    if (argc != 3)
     {
-        fprintf (stderr, "Usage: \"%s file.stk\n", argv[0]) ;
+        fprintf (stderr, "Usage: \"%s file.stk server_port\n", argv[0]) ;
 
         return EXIT_FAILURE ;
     }
+
+    server_port = atoi (argv[2]) ;
 
     /* Parses stack file (fills stack descrition and analysis) ****************/
 
     fprintf (stdout, "Preparing stk data ... ") ; fflush (stdout) ;
 
-    init_stack_description (&stkd) ;
-    init_analysis          (&analysis) ;
+    stack_description_init (&stkd) ;
+    analysis_init          (&analysis) ;
+    output_init            (&output) ;
 
-    error = fill_stack_description (&stkd, &analysis, argv[1]) ;
+    error = parse_stack_description_file (argv[1], &stkd, &analysis, &output) ;
 
     if (error != TDICE_SUCCESS)    return EXIT_FAILURE ;
 
@@ -92,9 +102,11 @@ int main (int argc, char** argv)
 
     fprintf (stdout, "Preparing thermal data ... ") ; fflush (stdout) ;
 
-    init_thermal_data (&tdata) ;
+    thermal_data_init (&tdata) ;
 
-    error = fill_thermal_data (&tdata, &stkd, &analysis) ;
+    error = thermal_data_build
+
+        (&tdata, &stkd.StackElements, stkd.Dimensions, &analysis) ;
 
     if (error != TDICE_SUCCESS)    goto ftd_error ;
 
@@ -104,9 +116,9 @@ int main (int argc, char** argv)
 
     fprintf (stdout, "Creating socket ... ") ; fflush (stdout) ;
 
-    init_socket (&server_socket) ;
+    socket_init (&server_socket) ;
 
-    error = open_server_socket (&server_socket, 10024) ;
+    error = open_server_socket (&server_socket, server_port) ;
 
     if (error != TDICE_SUCCESS)    goto socket_error ;
 
@@ -116,7 +128,7 @@ int main (int argc, char** argv)
 
     fprintf (stdout, "Waiting for client ... ") ; fflush (stdout) ;
 
-    init_socket (&client_socket) ;
+    socket_init (&client_socket) ;
 
     error = wait_for_client (&server_socket, &client_socket) ;
 
@@ -128,27 +140,36 @@ int main (int argc, char** argv)
 
     do
     {
-        init_network_message (&request) ;
+        network_message_init (&request) ;
 
         receive_message_from_socket (&client_socket, &request) ;
 
         switch (*request.Type)
         {
+
+        /**********************************************************************/
+
             case TDICE_EXIT_SIMULATION :
             {
-                free_network_message (&request) ;
+                network_message_destroy (&request) ;
 
                 goto quit ;
             }
+
+        /**********************************************************************/
+
             case TDICE_RESET_THERMAL_STATE :
             {
                 reset_thermal_state (&tdata, &analysis) ;
 
                 break ;
             }
+
+        /**********************************************************************/
+
             case TDICE_TOTAL_NUMBER_OF_FLOORPLAN_ELEMENTS :
             {
-                init_network_message (&reply) ;
+                network_message_init (&reply) ;
 
                 build_message_head   (&reply, TDICE_TOTAL_NUMBER_OF_FLOORPLAN_ELEMENTS) ;
 
@@ -158,19 +179,24 @@ int main (int argc, char** argv)
 
                 send_message_to_socket (&client_socket, &reply) ;
 
-                free_network_message (&reply) ;
+                network_message_destroy (&reply) ;
 
                 break ;
             }
+
+        /**********************************************************************/
+
             case TDICE_INSERT_POWERS_AND_SIMULATE_SLOT :
             {
                 Quantity_t nflpel, index ;
 
-                PowersQueue queue ;
+                PowersQueue_t queue ;
 
-                init_powers_queue (&queue) ;
+                powers_queue_init (&queue) ;
 
                 extract_message_word (&request, &nflpel, 0) ;
+
+                powers_queue_build (&queue, nflpel) ;
 
                 for (index = 1, nflpel++ ; index != nflpel ; index++)
                 {
@@ -181,27 +207,31 @@ int main (int argc, char** argv)
                     put_into_powers_queue (&queue, power_value) ;
                 }
 
-                error = insert_power_values (&stkd, &queue) ;
+                error = insert_power_values (&tdata.PowerGrid, &queue) ;
 
                 if (error != TDICE_SUCCESS)
                 {
                     fprintf (stderr, "error: insert power values\n") ;
 
-                    free_network_message (&request) ;
+                    powers_queue_destroy (&queue) ;
 
                     goto sim_error ;
                 }
 
-                init_network_message (&reply) ;
+                powers_queue_destroy (&queue) ;
+
+                network_message_init (&reply) ;
                 build_message_head   (&reply, TDICE_INSERT_POWERS_AND_SIMULATE_SLOT) ;
 
-                SimResult_t result = emulate_slot (&tdata, &stkd, &analysis) ;
+                SimResult_t result = emulate_slot
+
+                    (&tdata, stkd.Dimensions, &analysis) ;
 
                 insert_message_word (&reply, &result) ;
 
                 send_message_to_socket (&client_socket, &reply) ;
 
-                free_network_message (&reply) ;
+                network_message_destroy (&reply) ;
 
                 if (result != TDICE_SLOT_DONE)
                 {
@@ -212,51 +242,156 @@ int main (int argc, char** argv)
 
                 break ;
             }
-            case TDICE_THERMAL_RESULTS :
+
+        /**********************************************************************/
+
+            case TDICE_SEND_OUTPUT :
             {
-                OutputInstant_t instant ;
-                OutputType_t    type ;
+                OutputInstant_t  instant ;
+                OutputType_t     type ;
+                OutputQuantity_t quantity ;
 
-                extract_message_word (&request, &instant, 0) ;
-                extract_message_word (&request, &type,    1) ;
+                extract_message_word (&request, &instant,  0) ;
+                extract_message_word (&request, &type,     1) ;
+                extract_message_word (&request, &quantity, 2) ;
 
-                init_network_message (&reply) ;
-                build_message_head   (&reply, TDICE_THERMAL_RESULTS) ;
+                network_message_init (&reply) ;
+                build_message_head   (&reply, TDICE_SEND_OUTPUT) ;
 
                 float   time = get_simulated_time (&analysis) ;
-                Quantity_t n = get_number_of_inspection_points (&analysis, instant, type) ;
+                Quantity_t n = get_number_of_inspection_points (&output, instant, type, quantity) ;
 
                 insert_message_word (&reply, &time) ;
                 insert_message_word (&reply, &n) ;
 
-                error = fill_analysis_message
-
-                    (&analysis, stkd.Dimensions, tdata.Temperatures,
-                     instant, type, &reply) ;
-
-                if (error != TDICE_SUCCESS)
+                if (n > 0)
                 {
-                    fprintf (stderr, "error: generate message content\n") ;
+                    error = fill_output_message
 
-                    free_network_message (&reply) ;
-                    free_network_message (&request) ;
+                        (&output, stkd.Dimensions,
+                         tdata.Temperatures, tdata.PowerGrid.Sources,
+                         instant, type, quantity, &reply) ;
 
-                    goto sim_error ;
+                    if (error != TDICE_SUCCESS)
+                    {
+                        fprintf (stderr, "error: generate message content\n") ;
+
+                        network_message_destroy (&reply) ;
+
+                        goto sim_error ;
+                    }
                 }
 
                 send_message_to_socket (&client_socket, &reply) ;
 
-                free_network_message (&reply) ;
+                network_message_destroy (&reply) ;
 
                 break ;
             }
+
+        /**********************************************************************/
+
+            case TDICE_PRINT_OUTPUT :
+            {
+                OutputInstant_t  instant ;
+
+                extract_message_word (&request, &instant,  0) ;
+
+                if (headers == false)
+                {
+                    Error_t error = generate_output_headers
+
+                        (&output, stkd.Dimensions, (String_t)"% ") ;
+
+                    if (error != TDICE_SUCCESS)
+                    {
+                        fprintf (stderr, "error in initializing output files \n ");
+
+                        goto sim_error ;
+                    }
+
+                    headers = true ;
+                }
+
+                generate_output
+
+                    (&output, stkd.Dimensions,
+                     tdata.Temperatures, tdata.PowerGrid.Sources,
+                     get_simulated_time (&analysis), instant) ;
+
+                break ;
+            }
+
+        /**********************************************************************/
+
+            case TDICE_SIMULATE_SLOT :
+            {
+                network_message_init (&reply) ;
+                build_message_head   (&reply, TDICE_SIMULATE_SLOT) ;
+
+                SimResult_t result = emulate_slot (&tdata, stkd.Dimensions, &analysis) ;
+
+                insert_message_word (&reply, &result) ;
+
+                send_message_to_socket (&client_socket, &reply) ;
+
+                network_message_destroy (&reply) ;
+
+                if (result == TDICE_END_OF_SIMULATION)
+                {
+                    network_message_destroy (&request) ;
+
+                    goto quit ;
+                }
+                else if (result != TDICE_SLOT_DONE)
+                {
+                    fprintf (stderr, "error %d: emulate slot\n", result) ;
+
+                    goto sim_error ;
+                }
+
+                break ;
+            }
+
+        /**********************************************************************/
+
+            case TDICE_SIMULATE_STEP :
+            {
+                network_message_init (&reply) ;
+                build_message_head   (&reply, TDICE_SIMULATE_STEP) ;
+
+                SimResult_t result = emulate_step (&tdata, stkd.Dimensions, &analysis) ;
+
+                insert_message_word (&reply, &result) ;
+
+                send_message_to_socket (&client_socket, &reply) ;
+
+                network_message_destroy (&reply) ;
+
+                if (result == TDICE_END_OF_SIMULATION)
+                {
+                    network_message_destroy (&request) ;
+
+                    goto quit ;
+                }
+                else if (result != TDICE_STEP_DONE && result != TDICE_SLOT_DONE)
+                {
+                    fprintf (stderr, "error %d: emulate step\n", result) ;
+
+                    goto sim_error ;
+                }
+
+                break ;
+            }
+
+        /**********************************************************************/
 
             default :
 
                 fprintf (stderr, "ERROR :: received unknown message type") ;
         }
 
-        free_network_message (&request) ;
+        network_message_destroy (&request) ;
 
     } while (1) ;
 
@@ -264,24 +399,25 @@ int main (int argc, char** argv)
 
 quit :
 
-    close_socket           (&client_socket) ;
-    close_socket           (&server_socket) ;
-    free_thermal_data      (&tdata) ;
-    free_analysis          (&analysis) ;
-    free_stack_description (&stkd) ;
+    socket_close              (&client_socket) ;
+    socket_close              (&server_socket) ;
+    thermal_data_destroy      (&tdata) ;
+    stack_description_destroy (&stkd) ;
+    output_destroy            (&output) ;
 
     return EXIT_SUCCESS ;
 
 sim_error :
-                            close_socket           (&client_socket) ;
+                            network_message_destroy   (&request) ;
+                            socket_close              (&client_socket) ;
 wait_error :
-                            close_socket           (&server_socket) ;
+                            socket_close              (&server_socket) ;
 socket_error :
-                            free_thermal_data      (&tdata) ;
+                            thermal_data_destroy      (&tdata) ;
 ftd_error :
 wrong_analysis_error :
-                            free_analysis          (&analysis) ;
-                            free_stack_description (&stkd) ;
+                            stack_description_destroy (&stkd) ;
+                            output_destroy            (&output) ;
 
                             return EXIT_FAILURE ;
 }

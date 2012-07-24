@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -54,151 +54,189 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct PowerNode
-     *  \brief A node of a linked list to store a power value
+    /*! \struct PowersQueue_t
+     *  \brief A First In - First Out circular queue to store power values
      */
 
-    struct PowerNode
+    struct PowersQueue_t
     {
-        /*! The power value */
+        /*! The number of power values that the queue can store */
 
-        Power_t Value ;
+        Quantity_t Capacity ;
 
-        /*! Pointer to the following power node */
+        /*! Pointer to the memory that stores the power values */
 
-        struct PowerNode *Next ;
+        Power_t *Memory ;
+
+        /*! The number of power values stored in the queue */
+
+        Quantity_t Size ;
+
+        /*! PlaceHolder to indicate the end of the queue */
+
+        Quantity_t End;
+
+        /*! PlaceHolder to indicate the begining of the queue */
+
+        Quantity_t Start ;
     } ;
 
-    /*! Definition of the type PowerNode */
+    /*! Definition of the type PowersQueue_t */
 
-    typedef struct PowerNode PowerNode ;
+    typedef struct PowersQueue_t PowersQueue_t ;
 
-/******************************************************************************/
 
-    /*! \struct PowersQueue
-     *  \brief A First In - First Out list to store power values
-     */
-
-    struct PowersQueue
-    {
-        /*! Pointer to the first power value in the list */
-
-        PowerNode *Head ;
-
-        /*! Pointer to the last power value in the list */
-
-        PowerNode *Tail ;
-
-        /*! The number of power values in the list */
-
-        Quantity_t Length ;
-
-    } ;
-
-    /*! Definition of the type PowersQueue */
-
-    typedef struct PowersQueue PowersQueue ;
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a powers_queue to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a pqueue structure with default values
      *
-     * \param powers_queue the address of the power queue to initialize
+     * \param pqueue the address of the structure to initalize
      */
 
-    void init_powers_queue (PowersQueue *powers_queue) ;
+    void powers_queue_init (PowersQueue_t *pqueue) ;
 
 
 
-    /*! Allocates a PowersQueue in memory and sets its fields to their default
-     *  value with #init_powers_queue
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new PowersQueue
+     * The function destroys the content of \a dst and then makes the copy.
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void powers_queue_copy (PowersQueue_t *dst, PowersQueue_t *src) ;
+
+
+
+    /*! Reserves space to store power values
+     *
+     * The function deletes old memory, if any, calling \a powers_queue_destroy
+     * on the parameter \a pqueue.  Then, it reserves new memory.
+     *
+     * \param pqueue the address of the power queue
+     * \param capacity the new capacity of the power queue
+     */
+
+    void powers_queue_build (PowersQueue_t *pqueue, Quantity_t capacity) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a pqueue
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a powers_queue_init .
+     *
+     * \param pqueue the address of the structure to destroy
+     */
+
+    void powers_queue_destroy (PowersQueue_t *pqueue) ;
+
+
+
+    /*! Allocates memory for a structure of type PowersQueue_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a powers_queue_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    PowersQueue *alloc_and_init_powers_queue (void) ;
+    PowersQueue_t *powers_queue_calloc ( void ) ;
 
 
 
-    /*! Frees the memory related to \a powers_queue
+    /*! Allocates memory for a new copy of the structure \a pqueue
      *
-     * The parametrer \a powers_queue must be a pointer previously obtained with
-     * #alloc_and_init_powers_queue
+     * \param pqueue the address of the structure to clone
      *
-     * \param powers_queue the address of the powers queue structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a pqueue is \c NULL
      */
 
-    void free_powers_queue (PowersQueue *powers_queue) ;
+    PowersQueue_t *powers_queue_clone (PowersQueue_t *pqueue) ;
 
 
 
-    /*! Prints detailed information about all the fields of a power queue
+    /*! Frees the memory space pointed by \a pqueue
      *
+     * The function destroys the structure \a pqueue and then frees
+     * its memory. The pointer \a pqueue must have been returned by
+     * a previous call to \a powers_queue_calloc or \a powers_queue_clone .
+     *
+     * If \a pqueue is \c NULL, no operation is performed.
+     *
+     * \param pqueue the pointer to free
+     */
+
+    void powers_queue_free (PowersQueue_t *pqueue) ;
+
+
+
+    /*! Prints the list of power values as it looks in the floorplan file
+     *
+     * \param pqueue the powers queue to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param powers_queue the powers queue to print
+     * \param prefix a string to be printed as prefix at the beginning
+     *               of each line
      */
 
-    void print_detailed_powers_queue
+    void powers_queue_print
 
-        (FILE *stream, String_t prefix, PowersQueue *powers_queue) ;
-
-
-
-    /*! Prints the list of power values as it looks in the stack file
-     *
-     * \param stream the output stream (must be already open)
-     * \param powers_queue the powers queue to print
-     */
-
-    void print_formatted_powers_queue
-
-        (FILE *stream, PowersQueue *powers_queue) ;
+        (PowersQueue_t *pqueue, FILE *stream, String_t prefix) ;
 
 
 
     /*! Returns the state of the powers queue
      *
-     * \param powers_queue the powers queue
+     * \param pqueue the powers queue
      *
      * \return \c TRUE if the queue is empty
      * \return \c FALSE otherwise
      */
 
-    bool is_empty_powers_queue (PowersQueue *powers_queue) ;
+    bool is_empty_powers_queue (PowersQueue_t *pqueue) ;
+
+
+
+    /*! Returns the state of the powers queue
+     *
+     * \param pqueue the powers queue
+     *
+     * \return \c TRUE if the queue is full
+     * \return \c FALSE otherwise
+     */
+
+    bool is_full_powers_queue (PowersQueue_t *pqueue) ;
 
 
 
     /*! Inserts a power value at the end of the powers queue
      *
-     * \param powers_queue the powers queue
+     * If the power queue \a pqueue is full, the Capacity will be doubled.
+     *
+     * \param pqueue the powers queue
      * \param power the power value to insert
      */
 
-    void put_into_powers_queue (PowersQueue *powers_queue, Power_t power) ;
+    void put_into_powers_queue (PowersQueue_t *pqueue, Power_t power) ;
 
 
 
-    /*! Returns the power value at the beginning of a powers queue
+    /*! Returns and remve the power value at the beginning of a powers queue
      *
-     * \param powers_queue the powers queue
+     * \param pqueue the powers queue
      *
-     * \return the first power value in the list \a powers_queue
+     * \return the first power value in \a pqueue
+     * \return \c 0 if the power queue \a pqueue is empty
      */
 
-    Power_t get_from_powers_queue (PowersQueue *powers_queue) ;
-
-
-
-    /*! Removes the power value at the beginning of a powers queue
-     *
-     * \param powers_queue the powers queue
-     */
-
-    void pop_from_powers_queue (PowersQueue *powers_queue) ;
+    Power_t get_from_powers_queue (PowersQueue_t *pqueue) ;
 
 /******************************************************************************/
 

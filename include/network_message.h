@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -59,7 +59,7 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct NetworkMessage
+    /*! \struct NetworkMessage_t
      *
      *  \brief Structure used to store messages to be sent over network
      *
@@ -67,7 +67,7 @@ extern "C"
      *  Length field in te message is mesured in number of words.
      */
 
-    struct NetworkMessage
+    struct NetworkMessage_t
     {
         /*! The memory used to store the message */
 
@@ -91,37 +91,49 @@ extern "C"
 
     } ;
 
-    /*! Definition of the type NetworkMessage */
+    /*! Definition of the type NetworkMessage_t */
 
-    typedef struct NetworkMessage NetworkMessage ;
+    typedef struct NetworkMessage_t NetworkMessage_t ;
 
 
-    /*! Initializes a NetworkMessage
+
+/******************************************************************************/
+
+
+
+    /*! Inits the fields of the \a message structure with default values
      *
-     * \param message the address of the NetworkMessage to initialize
+     * The function reserves memory to store \c MESSAGE_LENGTH words
+     *
+     * \param message the address of the structure to initalize
      */
 
-    void init_network_message (NetworkMessage *message) ;
+    void network_message_init (NetworkMessage_t *message) ;
 
 
 
-    /*! Frees a message
+    /*! Destroys the content of the fields of the structure \a message
      *
-     * \param message the address of the NetworkMessage to free
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a network_message_init .
+     *
+     * \param message the address of the structure to destroy
      */
 
-    void free_network_message (NetworkMessage *message) ;
+    void network_message_destroy (NetworkMessage_t *message) ;
 
 
 
     /*! Changes the amount of memory available to store the message
      *
-     * \param message  the address of the message
+     * \param message     the address of the message
      * \param new_size the new size (number of words)
      *
      */
 
-    void increase_message_memory (NetworkMessage *message, Quantity_t new_size) ;
+    void increase_message_memory
+
+        (NetworkMessage_t *message, Quantity_t new_size) ;
 
 
 
@@ -131,10 +143,10 @@ extern "C"
      *  (i.e. the length snd the type)
      *
      * \param message the address of the message to build
-     * \param type    the type of the request
+     * \param type the type of the request
      */
 
-    void build_message_head (NetworkMessage *message, MessageType_t type) ;
+    void build_message_head (NetworkMessage_t *message, MessageType_t type) ;
 
 
 
@@ -144,10 +156,10 @@ extern "C"
      * (as a suffix) and the length of the message is incresed conseguently
      *
      * \param message the address of the message to build
-     * \param word    (in) the address of the word to add
+     * \param word (in) the address of the word to add
      */
 
-    void insert_message_word (NetworkMessage *message, void *word) ;
+    void insert_message_word (NetworkMessage_t *message, void *word) ;
 
 
 
@@ -157,17 +169,21 @@ extern "C"
      * \a index indicates a position out of the message payload the result is
      * undetermined.
      *
-     * \param message the address of the message to build
-     * \param word    (out) the address of the word to extrcact
-     * \param index   the index of the word (starting from the beginning of the content)
+     * \param message  the address of the message to access
+     * \param word  (out) the address of the word to extrcact
+     * \param index the index of the word (starting from the beginning
+     *              of the content)
      *
      * \return \c TDICE_SUCCESS if the operation succeeded
-     * \return \c TDICE_FAILURE if there index specifies a word out of the message
+     * \return \c TDICE_FAILURE if there index specifies a word out
+     *                          of the message
      */
 
     Error_t extract_message_word
 
-        (NetworkMessage *message, void *word, Quantity_t index) ;
+        (NetworkMessage_t *message, void *word, Quantity_t index) ;
+
+/******************************************************************************/
 
 #ifdef __cplusplus
 }

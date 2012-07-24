@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -53,260 +53,229 @@ extern "C"
 #include "types.h"
 
 #include "dimensions.h"
-#include "ic_element.h"
+#include "ic_element_list.h"
 #include "powers_queue.h"
 
 /******************************************************************************/
 
-    /*! \struct FloorplanElement
+    /*! \struct FloorplanElement_t
      *  \brief  Structure containing information about a floorplan element
      *
      *  Floorplan elements represent ...
      */
 
-    struct FloorplanElement
+    struct FloorplanElement_t
     {
         /*! The id (string) to identifiy the floorplan element */
 
         String_t Id ;
 
-        /*! The number of IC elements that defines the surface of the floorplan element */
+        /*! The number of IC elements that defines the surface of
+         *  the floorplan element */
 
         Quantity_t NICElements ;
 
-        /*! The list of IC elements that defines the surface of the floorplan element */
+        /*! The list of IC elements that defines the surface of
+         *  the floorplan element */
 
-        ICElement *ICElementsList ;
+        ICElementList_t ICElements ;
 
         /*! The area of the floorplan element, in \f$ \mu m^2 \f$,
          *  computed as the sum of the effective area of each ic element */
 
-        ChipDimension_t EffectiveSurface ;
+        ChipDimension_t Area ;
 
         /*! The list of power values representing the power consumption of
          *  the floorplan element during the thermal simulation */
 
-        PowersQueue *PowerValues ;
-
-        /*! Pointer to collect floorplan elements in a linked list */
-
-        struct FloorplanElement *Next ;
-
+        PowersQueue_t *PowerValues ;
     } ;
 
-    /*! Definition of the type FloorplanElement */
+    /*! Definition of the type FloorplanElement_t */
 
-    typedef struct FloorplanElement FloorplanElement ;
+    typedef struct FloorplanElement_t FloorplanElement_t ;
+
+
 
 /******************************************************************************/
 
 
 
-    /*! Sets all the fields of \a floorplan_element to a default value (zero or \c NULL ).
+    /*! Inits the fields of the \a flpel structure with default values
      *
-     * \param floorplan_element the address of the flooprlan element to initialize
+     * \param flpel the address of the structure to initalize
      */
 
-    void init_floorplan_element (FloorplanElement *floorplan_element) ;
+    void floorplan_element_init (FloorplanElement_t *flpel) ;
 
 
 
-    /*! Allocates a FloorplanElement in memory and sets its fields to their
-     *   default value with #init_floorplan_element
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new FloorplanElement
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void floorplan_element_copy
+
+        (FloorplanElement_t *dst, FloorplanElement_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a flpel
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a floorplan_element_init .
+     *
+     * \param flpel the address of the structure to destroy
+     */
+
+    void floorplan_element_destroy (FloorplanElement_t *flpel) ;
+
+
+
+    /*! Allocates memory for a structure of type FloorplanElement_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a floorplan_element_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    FloorplanElement *alloc_and_init_floorplan_element (void) ;
+    FloorplanElement_t *floorplan_element_calloc (void) ;
 
 
 
-    /*! Frees the memory related to \a floorplan_element
+    /*! Allocates memory for a new copy of the structure \a flpel
      *
-     * The parametrer \a floorplan_element must be a pointer previously
-     *  obtained with #alloc_and_init_floorplan_element
+     * \param flpel the address of the structure to clone
      *
-     * \param floorplan_element the address of the floorplan element structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a flpel is \c NULL
      */
 
-    void free_floorplan_element (FloorplanElement *floorplan_element) ;
+    FloorplanElement_t *floorplan_element_clone (FloorplanElement_t *flpel) ;
 
 
 
-    /*! Frees a list of floorplan elements
+    /*! Frees the memory space pointed by \a flpel
      *
-     * If frees, calling #free_floorplan_element, the floorplan element pointed
-     * by the parameter \a list and all the floorplan elements it finds following
-     * the linked list throught the field FloorplanElement::Next .
+     * The function destroys the structure \a flpel and then frees
+     * its memory. The pointer \a flpel must have been returned by
+     * a previous call to \a floorplan_element_calloc or
+     * \a floorplan_element_clone .
      *
-     * \param list the pointer to the first elment in the list to be freed
+     * If \a flpel is \c NULL, no operation is performed.
+     *
+     * \param flpel the pointer to free
      */
 
-    void free_floorplan_elements_list (FloorplanElement *list) ;
+    void floorplan_element_free (FloorplanElement_t *flpel) ;
 
 
 
-    /*! Searches for a StackElement in a linked list of floorplan elements.
+    /*! Tests if two floorplan elements have the same Id
      *
-     * Id based search of a StackElement structure in a list.
+     * \param flpel the first floorplan element
+     * \param other the second floorplan element
      *
-     * \param list the pointer to the list
-     * \param id   the identifier of the floorplan element to be found
-     *
-     * \return the address of a StackElement, if founded
-     * \return \c NULL if the search fails
+     * \return \c TRUE if \a flpel and \a other have the same Id
+     * \return \c FALSE otherwise
      */
 
-    FloorplanElement *find_floorplan_element_in_list
+    bool floorplan_element_same_id
 
-        (FloorplanElement *list, String_t id) ;
+        (FloorplanElement_t *flpel, FloorplanElement_t *other) ;
 
 
 
-    /*! Prints the floorplan element as it looks in the stack file
+    /*! Prints the floorplan element structure as it looks in the
+     *  floorplan file
      *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param floorplan_element the floorplan element to print
-     */
-
-    void print_formatted_floorplan_element
-
-        (FILE *stream, String_t prefix, FloorplanElement *floorplan_element) ;
-
-
-
-    /*! Prints a list of floorplan elements as they look in the stack file
-     *
-     * \param stream  the output stream (must be already open)
-     * \param prefix  a string to be printed as prefix at the beginning of each line
-     * \param list    the pointer to the first floorplan element in the list
-     */
-
-    void print_formatted_floorplan_elements_list
-
-        (FILE *stream, String_t prefix, FloorplanElement *list) ;
-
-
-
-    /*! Prints detailed information about all the fields of a floorplan element
-     *
-     * \param stream   the output stream (must be already open)
-     * \param prefix   a string to be printed as prefix at the beginning of each line
-     * \param floorplan_element the floorplan element to print
-     */
-
-    void print_detailed_floorplan_element
-
-        (FILE *stream, String_t prefix, FloorplanElement *floorplan_element) ;
-
-
-
-    /*! Prints a list of detailed information about all the fields of the flooprlan elements
-     *
+     * \param flpel the address of the structure to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list the pointer to the first floorplan element in the list
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      */
 
-    void print_detailed_floorplan_elements_list
+    void floorplan_element_print
 
-        (FILE *stream, String_t prefix, FloorplanElement *list) ;
-
-
-
-    /*! Fills the source vector corresponding to a floorplan element
-     *
-     *  \param sources           pointer to the location of the source vector
-     *                           that corresponds to the South-West thermal cell
-     *                           of the layer where the floorplan is placed
-     *  \param dimensions        pointer to the structure storing the dimensions
-     *  \param floorplan_element pointer to the floorplan element
-     *
-     *  \return \c TDICE_SUCCESS if the source vector has been filled correctly
-     *  \return \c TDICE_FAILURE if it not possible to fill the source vector
-     *                           (at least one floorplan element with no power
-     *                            values in its queue)
-     */
-
-    Error_t fill_sources_floorplan_element
-    (
-        Source_t         *sources,
-        Dimensions       *dimensions,
-        FloorplanElement *floorplan_element
-    ) ;
+        (FloorplanElement_t *flpel, FILE *stream, String_t prefix) ;
 
 
 
     /*! Returns the maximum temperature of the floorplan element
      *
-     *  \param floorplan_element pointer to the floorplan element
-     *  \param dimensions        pointer to the structure storing the dimensions
-     *  \param temperatures      pointer to the temperature of the first thermal
-     *                           cell in the layer where \a floorplan_element
-     *                           is placed
+     *  \param flpel         pointer to the floorplan element
+     *  \param dimensions   pointer to the structure storing the dimensions
+     *  \param temperatures pointer to the temperature of the first thermal
+     *                      cell in the layer where the floorplan element
+     *                      is placed
      *
      *  \return the maximum temperature among the thermal cells on the stack
-     *          layer where \a floorplan_element is placed
+     *          layer where \a flpel is placed
      */
 
     Temperature_t get_max_temperature_floorplan_element
     (
-        FloorplanElement *floorplan_element,
-        Dimensions       *dimensions,
-        Temperature_t    *temperatures
+        FloorplanElement_t *flpel,
+        Dimensions_t       *dimensions,
+        Temperature_t      *temperatures
     ) ;
 
 
 
     /*! Returns the minimum temperature of the floorplan element
      *
-     *  \param floorplan_element pointer to the floorplan element
-     *  \param dimensions        pointer to the structure storing the dimensions
-     *  \param temperatures      pointer to the temperature of the first thermal
-     *                           cell in the layer where \a floorplan_element
-     *                           is placed
+     *  \param flpel         pointer to the floorplan element
+     *  \param dimensions   pointer to the structure storing the dimensions
+     *  \param temperatures pointer to the temperature of the first thermal
+     *                      cell in the layer where the floorplan element
+     *                      is placed
      *
      *  \return the minimum temperature among the thermal cells on the stack
-     *          layer where \a floorplan_element is placed
+     *          layer where \a flpel is placed
      */
 
     Temperature_t get_min_temperature_floorplan_element
     (
-        FloorplanElement *floorplan_element,
-        Dimensions       *dimensions,
-        Temperature_t    *temperatures
+        FloorplanElement_t *flpel,
+        Dimensions_t       *dimensions,
+        Temperature_t      *temperatures
     ) ;
 
 
 
     /*! Returns the average temperature of the floorplan element
      *
-     *  \param floorplan_element pointer to the floorplan element
-     *  \param dimensions        pointer to the structure storing the dimensions
-     *  \param temperatures      pointer to the temperature of the first thermal
-     *                           cell in the layer where \a floorplan_element
-     *                           is placed
+     *  \param flpel         pointer to the floorplan element
+     *  \param dimensions   pointer to the structure storing the dimensions
+     *  \param temperatures pointer to the temperature of the first thermal
+     *                      cell in the layer where \a flpel
+     *                      is placed
      *
      *  \return the average temperature among the thermal cells on the stack
-     *          layer where \a floorplan_element is placed
+     *          layer where \a flpel is placed
      */
 
     Temperature_t get_avg_temperature_floorplan_element
     (
-        FloorplanElement *floorplan_element,
-        Dimensions       *dimensions,
-        Temperature_t    *temperatures
+        FloorplanElement_t *flpel,
+        Dimensions_t       *dimensions,
+        Temperature_t      *temperatures
     ) ;
 
 
 
-    /*! Moves one power value from \a pvalues into \a floorplan_element
+    /*! Moves one power value from \a pvalues into \a flpel
      *
      *  The queue \a pvalues must contain at least one power value
      *
-     *  \param floorplan_element pointer to the floorplan element
+     *  \param flpel    pointer to the floorplan element
      *  \param pvalues pointer to the list of power values
      *
      *  \return \c TDICE_FAILURE if the queue \a pvalues is empty
@@ -315,7 +284,7 @@ extern "C"
 
     Error_t insert_power_values_floorplan_element
 
-        (FloorplanElement *floorplan_element, PowersQueue *pvalues) ;
+        (FloorplanElement_t *flpel, PowersQueue_t *pvalues) ;
 
 /******************************************************************************/
 

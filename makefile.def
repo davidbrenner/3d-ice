@@ -1,5 +1,5 @@
  ##############################################################################
- # This file is part of 3D-ICE, version 2.1 .                                 #
+ # This file is part of 3D-ICE, version 2.2 .                                 #
  #                                                                            #
  # 3D-ICE is free software: you can  redistribute it and/or  modify it  under #
  # the terms of the  GNU General  Public  License as  published by  the  Free #
@@ -69,23 +69,35 @@
 
 3DICE_SOURCES_C = $(3DICE_SOURCES)/analysis.c                 \
                   $(3DICE_SOURCES)/channel.c                  \
-                  $(3DICE_SOURCES)/conventional_heat_sink.c   \
                   $(3DICE_SOURCES)/die.c                      \
+                  $(3DICE_SOURCES)/die_list.c                 \
                   $(3DICE_SOURCES)/dimensions.c               \
                   $(3DICE_SOURCES)/floorplan_element.c        \
+                  $(3DICE_SOURCES)/floorplan_element_list.c   \
+                  $(3DICE_SOURCES)/floorplan_file_parser.c    \
+                  $(3DICE_SOURCES)/floorplan_matrix.c         \
                   $(3DICE_SOURCES)/floorplan.c                \
+                  $(3DICE_SOURCES)/heat_sink.c                \
                   $(3DICE_SOURCES)/ic_element.c               \
+                  $(3DICE_SOURCES)/ic_element_list.c          \
                   $(3DICE_SOURCES)/inspection_point.c         \
+                  $(3DICE_SOURCES)/inspection_point_list.c    \
                   $(3DICE_SOURCES)/layer.c                    \
+                  $(3DICE_SOURCES)/layer_list.c               \
                   $(3DICE_SOURCES)/material.c                 \
+                  $(3DICE_SOURCES)/material_list.c            \
                   $(3DICE_SOURCES)/network_message.c          \
                   $(3DICE_SOURCES)/network_socket.c           \
+                  $(3DICE_SOURCES)/output.c                   \
+                  $(3DICE_SOURCES)/power_grid.c               \
                   $(3DICE_SOURCES)/powers_queue.c             \
                   $(3DICE_SOURCES)/stack_description.c        \
                   $(3DICE_SOURCES)/stack_element.c            \
+                  $(3DICE_SOURCES)/stack_element_list.c       \
+                  $(3DICE_SOURCES)/stack_file_parser.c        \
                   $(3DICE_SOURCES)/system_matrix.c            \
-                  $(3DICE_SOURCES)/thermal_cell.c             \
-                  $(3DICE_SOURCES)/thermal_data.c
+                  $(3DICE_SOURCES)/thermal_data.c             \
+                  $(3DICE_SOURCES)/thermal_grid.c
 
 3DICE_SOURCES_O = $(3DICE_SOURCES_C:.c=.o)
 3DICE_SOURCES_D = $(3DICE_SOURCES_C:.c=.d)
@@ -99,11 +111,11 @@
  ##############################################################################
 
 SLU_VERSION = 4.3
-SLU_MAIN    = $(HOME)/SuperLU_$(SLU_VERSION)
+SLU_MAIN    = $(HOME)/Libs/SuperLU_$(SLU_VERSION)
 SLU_INCLUDE = $(SLU_MAIN)/SRC
 SLU_LIB     = $(SLU_MAIN)/lib
-SLU_LIBS   = -L$(SLU_LIB) -lsuperlu_$(SLU_VERSION) -lblas
-#SLU_LIBS    = -L$(SLU_LIB) -lsuperlu_$(SLU_VERSION) -L/usr/lib -lblas
+#SLU_LIBS   = -L$(SLU_LIB) -lsuperlu_$(SLU_VERSION) -lblas
+SLU_LIBS    = -L$(SLU_LIB) -lsuperlu_$(SLU_VERSION) -L/usr/lib -lblas
 
  #
  # Commands and flags

@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -51,12 +51,12 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct ICElement
+    /*! \struct ICElement_t
      *
      *  A rectangle that represent the surface occupied by a flooprlan element
      */
 
-    struct ICElement
+    struct ICElement_t
     {
         /*! The south-west X coordinate, in \f$ \mu m \f$ */
 
@@ -73,18 +73,6 @@ extern "C"
         /*! The width (south <-> north) of the ic element, in \f$ \mu m \f$ */
 
         ChipDimension_t Width ;
-
-        /*! The length of the ic element, in \f$ \mu m \f$,
-         *  as the sum of all the lengths of the cells in the source layer
-         *  covered by the ic element */
-
-        ChipDimension_t EffectiveLength ;
-
-        /*! The width of the ic element, in \f$ \mu m \f$,
-         *  as the sum of all the widths of the cells in the source layer
-         *  covered by the ic element */
-
-        ChipDimension_t EffectiveWidth ;
 
         /*! The index of the row of the thermal cell where the south-west
          *  corner of the ic element is placed */
@@ -105,113 +93,114 @@ extern "C"
          *  corner of the ic element is placed */
 
         CellIndex_t NE_Column ;
-
-        /*! pointer to collect IC elements in a linked list */
-
-        struct ICElement *Next ;
-
     } ;
 
-    /*! Definition of the type ICElement */
+    /*! Definition of the type ICElement_t */
 
-    typedef struct ICElement ICElement ;
+    typedef struct ICElement_t ICElement_t ;
+
+
 
 /******************************************************************************/
 
-    /*! Sets all the fields of \a icelement to a default value (zero or \c NULL ).
+
+
+    /*! Inits the fields of the \a icel structure with default values
      *
-     * \param icelement the address of the ic element to initialize
+     * \param icel the address of the structure to initalize
      */
 
-    void init_ic_element (ICElement *icelement) ;
+    void ic_element_init (ICElement_t *icel) ;
 
 
 
-    /*! Allocates an ICElement in memory and sets its fields to their
-     *   default value with #init_ic_element
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new ICElement
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void ic_element_copy (ICElement_t *dst, ICElement_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a icel
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a ic_element_init .
+     *
+     * \param icel the address of the structure to destroy
+     */
+
+    void ic_element_destroy (ICElement_t *icel) ;
+
+
+
+    /*! Allocates memory for a structure of type ICElement_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a ic_element_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    ICElement *alloc_and_init_ic_element (void) ;
+    ICElement_t *ic_element_calloc ( void ) ;
 
 
 
-    /*! Frees the memory related to \a icelement
+    /*! Allocates memory for a new copy of the structure \a icel
      *
-     * The parametrer \a icelement must be a pointer previously
-     *  obtained with #alloc_and_init_ic_element
+     * \param icel the address of the structure to clone
      *
-     * \param icelement the address of the ic element structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a icel is \c NULL
      */
 
-    void free_ic_element (ICElement *icelement) ;
+    ICElement_t *ic_element_clone (ICElement_t *icel) ;
 
 
 
-    /*! Frees a list of ic elements
+    /*! Frees the memory space pointed by \a icel
      *
-     * If frees, calling \c free_ic_element, the ic element pointed by the
-     * parameter \a list and all the ic elements it finds following the
-     * linked list throught the field ICElement::Next .
+     * The function destroys the structure \a icel and then frees
+     * its memory. The pointer \a icel must have been returned by
+     * a previous call to \a ic_element_calloc or \a ic_element_clone .
      *
-     * \param list the pointer to the first elment in the list to be freed
+     * If \a icel is \c NULL, no operation is performed.
+     *
+     * \param icel the pointer to free
      */
 
-    void free_ic_elements_list (ICElement *list) ;
+    void ic_element_free (ICElement_t *icel) ;
 
 
 
-    /*! Prints detailed information about all the fields of an ic element
+    /*! Tests if two ic elements have the same position and dimensions
      *
-     * \param stream    the output stream (must be already open)
-     * \param prefix    a string to be printed as prefix at the beginning of each line
-     * \param icelement the ic element to print
+     * \param icel the first ic element
+     * \param other the second ic element
+     *
+     * \return \c TRUE if \a icel and \a other have the same position
+     *            and dimensions
+     * \return \c FALSE otherwise
      */
 
-    void print_detailed_ic_element
-
-        (FILE *stream, String_t prefix, ICElement *icelement) ;
+    bool ic_element_equal (ICElement_t *icel, ICElement_t *other) ;
 
 
 
-    /*! Prints a list of detailed information about all the fields of the icelements
+    /*! Prints the ic element location as it looks in the floorplan file
      *
+     * \param icel the address of the structure to print
      * \param stream the output stream (must be already open)
      * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first ic element in the list
      */
 
-    void print_detailed_ic_elements_list
-
-        (FILE *stream, String_t prefix, ICElement *list) ;
-
-
-
-    /*! Prints the ic element as it looks in the stack file
-     *
-     * \param stream    the output stream (must be already open)
-     * \param prefix    a string to be printed as prefix at the beginning of each line
-     * \param icelement the ic element to print
-     */
-
-    void print_formatted_ic_element
-
-        (FILE *stream, String_t prefix, ICElement *icelement) ;
-
-
-
-    /*! Prints a list of ic elements as they look in the stack file
-     *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first ic element in the list
-     */
-
-    void print_formatted_ic_elements_list
-
-        (FILE *stream, String_t prefix, ICElement *list) ;
+    void ic_element_print (ICElement_t *icel, FILE *stream, String_t prefix) ;
 
 
 
@@ -227,7 +216,7 @@ extern "C"
      *  \return \c false otherwise
      */
 
-    bool check_intersection (ICElement *icelement_a, ICElement *icelement_b) ;
+    bool check_intersection (ICElement_t *icelement_a, ICElement_t *icelement_b) ;
 
 
 
@@ -236,14 +225,14 @@ extern "C"
      *  The control is based on the real coordinates of the ic element, i.e. the
      *  coordinates read from the floorplan file.
      *
+     *  \param icel       the ic element to test
      *  \param dimensions the structure storing the dimensions of the IC
-     *  \param icelement the ic element to test
      *
-     *  \return \c true if \a icelement is outside of the IC
+     *  \return \c true if \a icel is outside of the IC
      *  \return \c false otherwise
      */
 
-    bool check_location (Dimensions *dimensions, ICElement* icelement) ;
+    bool check_location (ICElement_t* icel, Dimensions_t *dimensions) ;
 
 
 
@@ -254,51 +243,29 @@ extern "C"
      *  columns to place the ic element on the surface of the active
      *  layer. It also computes the effective dimensions.
      *
+     *  \param icel       the ic element to align on the source layer
      *  \param dimensions the structure storing the dimensions of the IC
-     *  \param icelement the ic element to align on the source layer
      */
 
-    void align_to_grid (Dimensions *dimensions, ICElement* icelement) ;
-
-
-    /*! Fills the source vector corresponding to an ic element
-     *
-     *  \param sources    pointer to the location of the source vector
-     *                    that corresponds to the South-West thermal cell
-     *                    of the layer where the floorplan is placed
-     *  \param dimensions pointer to the structure storing the dimensions
-     *  \param power      the power value consumed by the floorplan element
-     *  \param surface    the surface of the floorplan element
-     *  \param icelement  pointer to the ic element
-     */
-
-    void fill_sources_ic_element
-    (
-        Source_t        *sources,
-        Dimensions      *dimensions,
-        Power_t          power,
-        ChipDimension_t  surface,
-        ICElement       *icelement
-    ) ;
+    void align_to_grid (ICElement_t* icel, Dimensions_t *dimensions) ;
 
 
 
     /*! Returns the maximum temperature of the ic element
      *
-     *  \param icelement    pointer to the ic element
+     *  \param icel         pointer to the ic element
      *  \param dimensions   pointer to the structure storing the dimensions
      *  \param temperatures pointer to the temperature of the first thermal
-     *                      cell in the layer where \a icelement
-     *                      is placed
+     *                      cell in the layer where the IC element is placed
      *
      *  \return the maximum temperature among the thermal cells on the stack
-     *          layer where \a icelement is placed
+     *          layer where \a icel is placed
      */
 
     Temperature_t get_max_temperature_ic_element
     (
-        ICElement     *icelement,
-        Dimensions    *dimensions,
+        ICElement_t   *icel,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures
     ) ;
 
@@ -306,20 +273,19 @@ extern "C"
 
     /*! Returns the minimum temperature of the ic element
      *
-     *  \param icelement    pointer to the ic element
+     *  \param icel         pointer to the ic element
      *  \param dimensions   pointer to the structure storing the dimensions
      *  \param temperatures pointer to the temperature of the first thermal
-     *                      cell in the layer where \a icelement
-     *                      is placed
+     *                      cell in the layer where the IC element is placed
      *
      *  \return the minimum temperature among the thermal cells on the stack
-     *          layer where \a icelement is placed
+     *          layer where \a icel is placed
      */
 
     Temperature_t get_min_temperature_ic_element
     (
-        ICElement     *icelement,
-        Dimensions    *dimensions,
+        ICElement_t   *icel,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures
     ) ;
 
@@ -327,20 +293,19 @@ extern "C"
 
     /*! Returns the average temperature of the ic element
      *
-     *  \param icelement    pointer to the ic element
+     *  \param icel         pointer to the ic element
      *  \param dimensions   pointer to the structure storing the dimensions
      *  \param temperatures pointer to the temperature of the first thermal
-     *                      cell in the layer where \a icelement
-     *                      is placed
+     *                      cell in the layer where the IC element is placed
      *
      *  \return the average temperature among the thermal cells on the stack
-     *          layer where \a icelement is placed
+     *          layer where \a icel is placed
      */
 
     Temperature_t get_avg_temperature_ic_element
     (
-        ICElement     *icelement,
-        Dimensions    *dimensions,
+        ICElement_t   *icel,
+        Dimensions_t  *dimensions,
         Temperature_t *temperatures
     ) ;
 

@@ -1,5 +1,5 @@
  ##############################################################################
- # This file is part of 3D-ICE, version 2.1 .                                 #
+ # This file is part of 3D-ICE, version 2.2 .                                 #
  #                                                                            #
  # 3D-ICE is free software: you can  redistribute it and/or  modify it  under #
  # the terms of the  GNU General  Public  License as  published by  the  Free #
@@ -43,9 +43,7 @@ include $(3DICE_MAIN)/makefile.def
 CINCLUDES := $(CINCLUDES) -I$(SLU_INCLUDE)
 
 CFLAGS := $(CFLAGS) -Wall -Wextra -Werror
-#CFLAGS := $(CFLAGS) -DPRINT_THERMAL_CELLS
 #CFLAGS := $(CFLAGS) -DPRINT_SYSTEM_MATRIX
-#CFLAGS := $(CFLAGS) -DPRINT_SOURCES
 #CFLAGS := $(CFLAGS) -DPRINT_SYSTEM_VECTOR
 
 all: $(3DICE_SOURCES_O)

@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -44,158 +44,101 @@
 
 /******************************************************************************/
 
-void init_material (Material *material)
+void material_init (Material_t *material)
 {
     material->Id                     = NULL ;
-    material->Used                   = 0u ;
     material->VolumetricHeatCapacity = (SolidVHC_t) 0.0 ;
     material->ThermalConductivity    = (SolidTC_t) 0.0 ;
-    material->Next                   = NULL ;
 }
 
 /******************************************************************************/
 
-Material *alloc_and_init_material (void)
+void material_copy (Material_t *dst, Material_t *src)
 {
-    Material *material = (Material *) malloc (sizeof(Material)) ;
+    material_destroy (dst) ;
 
-    if (material != NULL)
+    dst->Id = (src->Id == NULL) ? NULL : strdup (src->Id) ;
 
-        init_material (material) ;
-
-    return material ;
+    dst->VolumetricHeatCapacity = src->VolumetricHeatCapacity ;
+    dst->ThermalConductivity    = src->ThermalConductivity ;
 }
 
 /******************************************************************************/
 
-void free_material (Material *material)
+void material_destroy (Material_t *material)
 {
     if (material->Id != NULL)
 
-        FREE_POINTER (free, material->Id) ;
+        free (material->Id) ;
 
-    FREE_POINTER (free, material) ;
+    material_init (material) ;
 }
 
 /******************************************************************************/
 
-void free_materials_list (Material *list)
+Material_t *material_calloc ( void )
 {
-    FREE_LIST (Material, list, free_material) ;
-}
+    Material_t *material = (Material_t *) malloc (sizeof(Material_t)) ;
 
-/******************************************************************************/
+    if (material != NULL)
 
-Material *find_material_in_list (Material *list, String_t id)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (Material, material, list)
-    {
-        if (strcmp(material->Id, id) == 0)
-            break ;
-    }
+        material_init (material) ;
+
     return material ;
 }
 
 /******************************************************************************/
 
-void print_formatted_material
-(
-    FILE     *stream,
-    String_t  prefix,
-    Material *material
-)
+Material_t *material_clone (Material_t *material)
+{
+    if (material == NULL)
+
+        return NULL ;
+
+    Material_t *newm = material_calloc ( ) ;
+
+    if (newm != NULL)
+
+        material_copy (newm, material) ;
+
+    return newm ;
+}
+
+/******************************************************************************/
+
+void material_free (Material_t *material)
+{
+    if (material == NULL)
+
+        return ;
+
+    material_destroy (material) ;
+
+    free (material) ;
+}
+
+/******************************************************************************/
+
+bool material_same_id (Material_t *material, Material_t *other)
+{
+    return strcmp (material->Id, other->Id) == 0 ? true : false ;
+}
+
+/******************************************************************************/
+
+void material_print (Material_t *material, FILE *stream, String_t prefix)
 {
     fprintf (stream,
              "%smaterial %s :\n",
              prefix, material->Id) ;
 
     fprintf (stream,
-             "%s   thermal conductivity     %.4e  ;\n",
+             "%s   thermal conductivity     %.4e ;\n",
              prefix, material->ThermalConductivity) ;
 
     fprintf (stream,
-             "%s   volumetric heat capacity %.4e  ;\n",
+             "%s   volumetric heat capacity %.4e ;\n",
              prefix, material->VolumetricHeatCapacity) ;
-}
-
-/******************************************************************************/
-
-void print_formatted_materials_list
-(
-    FILE     *stream,
-    String_t  prefix,
-    Material *list
-)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (Material, material, list)
-    {
-        if (material->Next == NULL)
-
-            break ;
-
-        print_formatted_material (stream, prefix, material) ;
-
-        fprintf (stream, "%s\n", prefix) ;
-    }
-
-    print_formatted_material (stream, prefix, material) ;
-}
-
-/******************************************************************************/
-
-void print_detailed_material
-(
-    FILE     *stream,
-    String_t  prefix,
-    Material *material
-)
-{
-    fprintf (stream,
-             "%smaterial                    = %p\n",
-             prefix, material) ;
-
-    fprintf (stream,
-             "%s  Id                        = %s\n",
-             prefix, material->Id) ;
-
-    fprintf (stream,
-             "%s  Used                      = %d\n",
-             prefix, material->Used) ;
-
-    fprintf (stream,
-             "%s  VolumetricHeatCapacity    = %.4e\n",
-             prefix, material->VolumetricHeatCapacity) ;
-
-    fprintf (stream,
-             "%s  ThermalConductivity       = %.4e\n",
-             prefix, material->ThermalConductivity) ;
-
-    fprintf (stream,
-             "%s  Next                      = %p\n",
-             prefix, material->Next) ;
-}
-
-/******************************************************************************/
-
-void print_detailed_materials_list
-(
-    FILE     *stream,
-    String_t  prefix,
-    Material *list
-)
-{
-    FOR_EVERY_ELEMENT_IN_LIST_NEXT (Material, material, list)
-    {
-        if (material->Next == NULL)
-
-            break ;
-
-        print_detailed_material (stream, prefix, material) ;
-
-        fprintf (stream, "%s\n", prefix) ;
-    }
-
-    print_detailed_material (stream, prefix, material) ;
 }
 
 /******************************************************************************/

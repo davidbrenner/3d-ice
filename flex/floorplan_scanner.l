@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -54,7 +54,7 @@
 /* Changes the default `yy' prefix used by flex for all globally-visible */
 /* variable and function names to instead be `PREFIX'.                   */
 
-%option prefix="floorplan_"
+%option prefix="floorplan_parser_"
 
 /* Directs flex to generate a scanner that maintains the number of the */
 /* current line read from its input in the global variable yylineno.   */
@@ -96,7 +96,7 @@
 u_integer [[:digit:]]+
 s_integer [+-]?[[:digit:]]+
 exponent  [eE]{s_integer}
-double    {s_integer}\.{u_integer}{exponent}?
+double    {s_integer}((\.{u_integer})?{exponent}?)?
 
 identifier     [[:alpha:]](\_|[[:alnum:]])*
 

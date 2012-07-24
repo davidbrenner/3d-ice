@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.1 .                                 *
+ * This file is part of 3D-ICE, version 2.2 .                                 *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -53,27 +53,25 @@ extern "C"
 #include "types.h"
 
 #include "channel.h"
+#include "heat_sink.h"
 #include "die.h"
 #include "dimensions.h"
-#include "floorplan.h"
-#include "floorplan_element.h"
 #include "layer.h"
-#include "powers_queue.h"
-#include "system_matrix.h"
-#include "thermal_cell.h"
 
 /******************************************************************************/
 
     /*! \union StackElement_p
      *
-     *  \brief A union of pointers to types that can be an instance of a StackElement
+     *  \brief A union of pointers to types that can be an instance
+     *         of a StackElement
      */
 
     union StackElement_p
     {
-        Layer   *Layer ;     /*!< Pointer to a Layer   */
-        Die     *Die ;       /*!< Pointer to a Die     */
-        Channel *Channel ;   /*!< Pointer to a Channel */
+        Layer_t    *Layer ;     /*!< Pointer to a Layer      */
+        Die_t      *Die ;       /*!< Pointer to a Die        */
+        Channel_t  *Channel ;   /*!< Pointer to the Channel  */
+        HeatSink_t *HeatSink ;  /*!< Pointer to the Heatsink */
     } ;
 
     /*! Definition of the type StackElement_p */
@@ -82,15 +80,16 @@ extern "C"
 
 /******************************************************************************/
 
-    /*! \struct StackElement
+    /*! \struct StackElement_t
      *
-     *  \brief Structure used to store data about the stack element that compose the 2D/3D stack.
+     *  \brief Structure used to store data about the stack element
+     *         that compose the 2D/3D stack.
      *
-     *  A stack element is the main componenent of a 3d stack. It can be a layer,
-     *  a die or a channel.
+     *  A stack element is the main componenent of a 3d stack. It can
+     *  be a layer, a die or a channel.
      */
 
-    struct StackElement
+    struct StackElement_t
     {
         /*! The id (string) of the stack element */
 
@@ -98,7 +97,7 @@ extern "C"
 
         /*! The type of the stack element (Layer, Die or Channel) */
 
-        StackElement_t Type ;
+        StackElementType_t Type ;
 
         /*! Pointer to a data structure representing the type of a StackElement.
          *  This pointer must be casted depending on the value stored in
@@ -110,259 +109,182 @@ extern "C"
 
         CellIndex_t NLayers ;
 
-        /*! A pointer to a Floorplan. This field is
-         *  used only if StaclElement::Type is \c TDICE_STACK_ELEMENT_DIE */
-
-        Floorplan *Floorplan ;
-
         /*! The offset (\# layers) of the first layer of the
          *  stack element, counting from the first layer in the stack */
 
         CellIndex_t Offset ;
-
-        /*! Pointer to the 'next' stack element (towards the top of the stack),
-         *  to collect stack elements in a double linked list */
-
-        struct StackElement *Next ;
-
-        /*! Pointer to the 'previous' stack element (towards the bottom of the stack),
-         *  to collect stack elements in a double linked list */
-
-        struct StackElement *Prev ;
-
     } ;
 
-    /*! Definition of the type StackElement */
+    /*! Definition of the type StackElement_t */
 
-    typedef struct StackElement StackElement ;
+    typedef struct StackElement_t StackElement_t ;
+
+
 
 /******************************************************************************/
 
-    /*! Sets all the fields of \a stack \a element to a default value (zero or \c NULL ).
+
+
+    /*! Inits the fields of the \a stkel structure with default values
      *
-     * \param stack_element the address of the stack element to initialize
+     * \param stkel the address of the structure to initalize
      */
 
-    void init_stack_element (StackElement *stack_element) ;
+    void stack_element_init (StackElement_t *stkel) ;
 
 
 
-    /*! Allocates a stack element in memory and sets its fields to their default
-     *  value with #init_stack_element
+    /*! Copies the structure \a src into \a dst , as an assignement
      *
-     * \return the pointer to a new StackElement
+     * The function destroys the content of \a dst and then makes the copy
+     *
+     * \param dst the address of the left term sructure (destination)
+     * \param src the address of the right term structure (source)
+     */
+
+    void stack_element_copy (StackElement_t *dst, StackElement_t *src) ;
+
+
+
+    /*! Destroys the content of the fields of the structure \a stkel
+     *
+     * The function releases any dynamic memory used by the structure and
+     * resets its state calling \a stac_element_init .
+     *
+     * \param stkel the address of the structure to destroy
+     */
+
+    void stack_element_destroy (StackElement_t *stkel) ;
+
+
+
+    /*! Allocates memory for a structure of type StackElement_t
+     *
+     * The content of the new structure is set to default values
+     * calling \a stack_element_init
+     *
+     * \return the pointer to the new structure
      * \return \c NULL if the memory allocation fails
      */
 
-    StackElement *alloc_and_init_stack_element (void) ;
+    StackElement_t *stack_element_calloc (void) ;
 
 
 
-    /*! Frees the memory related to \a stack \a element
+    /*! Allocates memory for a new copy of the structure \a stkel
      *
-     * The parametrer \a stack_element must be a pointer previously obtained with
-     * #alloc_and_init_stack_element
+     * \param stkel the address of the structure to clone
      *
-     * \param stack_element the address of the stack_element structure to free
+     * \return a pointer to a new structure
+     * \return \c NULL if the memory allocation fails
+     * \return \c NULL if the parameter \a stkel is \c NULL
      */
 
-    void free_stack_element (StackElement *stack_element) ;
+    StackElement_t *stack_element_clone (StackElement_t *stkel) ;
 
 
 
-    /*! Frees a list of stack elements
+    /*! Frees the memory space pointed by \a stkel
      *
-     * If frees, calling #free_stack_element, the stack element pointed by the
-     * parameter \a list and all the stack elements it finds following the
-     * linked list throught the field StackElement::Next .
+     * The function destroys the structure \a stkel and then frees
+     * its memory. The pointer \a stkel must have been returned by
+     * a previous call to \a stack_element_calloc or
+     * \a stack_element_clone .
      *
-     * \param list the pointer to the first elment in the list to be freed
+     * If \a stkel is \c NULL, no operation is performed.
+     *
+     * \param stkel the pointer to free
      */
 
-    void free_stack_elements_list (StackElement *list) ;
+    void stack_element_free (StackElement_t *stkel) ;
 
 
 
-    /*! Searches for a StackElement in a linked list of stack elements.
+    /*! Tests if two stack elements have the same Id
      *
-     * Id based search of a StackElement structure in a list.
+     * \param stkel the first stack element
+     * \param other the second stack element
      *
-     * \param list the pointer to the list
-     * \param id   the identifier of the stack element to be found
-     *
-     * \return the address of a StackElement, if founded
-     * \return \c NULL if the search fails
+     * \return \c TRUE if \a stkel and \a other have the same Id
+     * \return \c FALSE otherwise
      */
 
-    StackElement *find_stack_element_in_list (StackElement *list, String_t id) ;
+    bool stack_element_same_id (StackElement_t *stkel, StackElement_t *other) ;
 
 
-    // FIXME : what about print_formatted_stack_element ??
-    // FIXME : what about print_detailed_stack_element  ??
 
-    /*! Prints a list of stack elements as they look in the stack file
+    /*! Prints the stack element declaration as it looks in the stack file
      *
+     * \param stkel the address of the structure to print
      * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first stack element in the list
+     * \param prefix a string to be printed as prefix at the
+     *               beginning of each line
      */
 
-    void print_formatted_stack_elements_list
+    void stack_element_print
 
-        (FILE *stream, String_t prefix, StackElement *list) ;
+        (StackElement_t *stkel, FILE *stream, String_t prefix) ;
 
 
 
-    /*! Prints a list of detailed information about all the fields of the stack elements
+    /*! Returns the offset of the source layer of the stack element
+     *  within the stack
      *
-     * \param stream the output stream (must be already open)
-     * \param prefix a string to be printed as prefix at the beginning of each line
-     * \param list   the pointer to the first stack element in the list
-     */
-
-    void print_detailed_stack_elements_list
-
-        (FILE *stream, String_t prefix, StackElement *list) ;
-
-
-
-    /*! Returns the offset of the source layer of the stack element within the stack
-     *
-     *  \param stack_element pointer to the stack element
+     *  \param stkel pointer to the stack element
      *
      *  \return the offset (\# layers) of the source layer within the stack
      */
 
-    CellIndex_t get_source_layer_offset (StackElement *stack_element) ;
-
-    /*! Fill the thermal cells corresponding to a stack element
-     *
-     *  \param thermal_cells pointer to the first thermal cell in the 3d grid
-     *  \param delta_time    the time resolution of the thermal simulation
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param stack_element pointer to the stack element
-     */
-
-    void fill_thermal_cell_stack_element
-    (
-        ThermalCell  *thermal_cells,
-        Time_t        delta_time,
-        Dimensions   *dimensions,
-        StackElement *stack_element
-    ) ;
-
-
-
-    /*! Fills the source vector corresponding to a stack element
-     *
-     *  \param sources       pointer to the first element in the source vector
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param stack_element pointer to the stack element
-     *
-     *  \return \c TDICE_SUCCESS if the source vector has been filled correctly
-     *  \return \c TDICE_FAILURE if it not possible to fill the source vector
-     *                           (at least one floorplan element with no power
-     *                            values in its queue)
-     */
-
-    Error_t fill_sources_stack_element
-    (
-        Source_t     *sources,
-        Dimensions   *dimensions,
-        StackElement *stack_element
-    ) ;
-
-
-
-    /*! Fills the system matrix
-     *
-     *  \param system_matrix copy of the system matrix structure
-     *  \param dimensions    pointer to the structure storing the dimensions
-     *  \param thermal_cells pointer to the first thermal cell in the 3d grid
-     *  \param stack_element pointer to the stack element
-     *
-     *  \return A matrix partially filled (FIXME)
-     */
-
-    SystemMatrix fill_system_matrix_stack_element
-    (
-        SystemMatrix  system_matrix,
-        Dimensions   *dimensions,
-        ThermalCell  *thermal_cells,
-        StackElement *stack_element
-    ) ;
+    CellIndex_t get_source_layer_offset (StackElement_t *stkel) ;
 
 
 
     /*! Prints a matrix of temperatures as the thermal map of the stack element
      *
-     * \param stack_element pointer to the stack element to print
+     * \param stkel          pointer to the stack element to print
      * \param dimensions    pointer to the structure storing the dimensions
      * \param temperatures  pointer to the first element of the temparature array
      * \param stream        the reference to the (already opened) stream
      */
 
-    void print_thermal_map_stack_element
+    void stack_element_print_thermal_map
     (
-        StackElement  *stack_element,
-        Dimensions    *dimensions,
-        Temperature_t *temperatures,
-        FILE          *stream
+        StackElement_t  *stkel,
+        Dimensions_t    *dimensions,
+        Temperature_t   *temperatures,
+        FILE            *stream
     ) ;
 
 
 
-    /*! Returns the total number of floorplan elements in \a stack_element
+    /*! Prints a matrix of source values as the power map of the stack element
      *
-     * \param stack_element address of the StackElement structure
+     * \param stkel          pointer to the stack element to print
+     * \param dimensions    pointer to the structure storing the dimensions
+     * \param sources       pointer to the first element of the source array
+     * \param stream        the reference to the (already opened) stream
+     */
+
+    void stack_element_print_power_map
+    (
+        StackElement_t  *stkel,
+        Dimensions_t    *dimensions,
+        Source_t        *sources,
+        FILE            *stream
+    ) ;
+
+
+
+    /*! Returns the total number of floorplan elements
      *
-     * \return the total nyumber of floorplan elements in \a stack_element
+     * \param stkel address of the StackElement structure
+     *
+     * \return the total nyumber of floorplan elements in \a stkel
      */
 
     Quantity_t get_number_of_floorplan_elements_stack_element
 
-        (StackElement *stack_element) ;
-
-
-
-    /*! Returns a pointer to a floorplan element in the stack element
-     *
-     * \param stack_element address of the stack_element
-     * \param floorplan_element_id id of the floorplan element as in the
-     *                             floorplan file
-     *
-     * \return \c NULL if \a stack_element is not a die stack element
-     * \return \c NULL if \a floorplan_element_id does not exist in the floorplan
-     * \return the pointer to the floorplan element \a floorplan_element_id
-     *         that belongs to the floorplan on the die stack element
-     *         \a stack_element
-     */
-
-    FloorplanElement *get_floorplan_element_stack_element
-
-        (StackElement *stack_element, String_t floorplan_element_id) ;
-
-
-
-    /*! Moves power values from \a pvaluse into a \a stack_element
-     *
-     *  The function works only if \a stack_element is a die. Otherwise, the
-     *  queue \a pvalues remains unchanged. The queue \a pvalues must contain
-     *  at least as many power values as floorplan elements in the floorplan
-     *  of the stack element.
-     *
-     *  \param stack_element address of the StackElement structure
-     *  \param pvalues pointer to the list of power values
-     *
-     *  \return \c TDICE_FAILURE if the queue \a pvalues does not contain enough
-     *                           power values
-     *  \return \c TDICE_SUCCESS if the power values have been copied or if
-     *                           \a stack_element is not a die
-     */
-
-    Error_t insert_power_values_stack_element
-
-        (StackElement *stack_element, PowersQueue *pvalues) ;
+        (StackElement_t *stkel) ;
 
 /******************************************************************************/
 
