@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2 .                                 *
+ * This file is part of 3D-ICE, version 2.2.1 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -144,7 +144,7 @@ void ic_element_print
 )
 {
     fprintf (stream,
-        "%s\trectangle (%.1f, %.1f, %.1f, %.1f ) ;\n",
+        "%s   rectangle (%.1f, %.1f, %.1f, %.1f ) ;\n",
         prefix, icel->SW_X, icel->SW_Y,
                 icel->Length, icel->Width) ;
 }

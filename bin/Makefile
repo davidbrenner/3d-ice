@@ -1,5 +1,5 @@
  ##############################################################################
- # This file is part of 3D-ICE, version 2.2 .                                 #
+ # This file is part of 3D-ICE, version 2.2.1 .                               #
  #                                                                            #
  # 3D-ICE is free software: you can  redistribute it and/or  modify it  under #
  # the terms of the  GNU General  Public  License as  published by  the  Free #
@@ -50,17 +50,17 @@ CLIBS = $(3DICE_LIB_A) $(SLU_LIBS) -lm
 -include 3D-ICE-Emulator.d
 
 3D-ICE-Emulator: 3D-ICE-Emulator.o $(3DICE_LIB_A)
-	$(CC) $< $(CLIBS) -o $@
+	$(CC) $(CFLAGS)  $< $(CLIBS) -o $@
 
 -include 3D-ICE-Client.d
 
 3D-ICE-Client: 3D-ICE-Client.o $(3DICE_LIB_A)
-	$(CC) $< $(CLIBS) -o $@
+	$(CC) $(CFLAGS) $< $(CLIBS) -o $@
 
 -include 3D-ICE-Server.d
 
 3D-ICE-Server: 3D-ICE-Server.o $(3DICE_LIB_A)
-	$(CC) $< $(CLIBS) -o $@
+	$(CC) $(CFLAGS) $< $(CLIBS) -o $@
 
 clean:
 	@$(RM) $(RMFLAGS) 3D-ICE-Emulator
