@@ -1,5 +1,5 @@
  ##############################################################################
- # This file is part of 3D-ICE, version 2.2.2 .                               #
+ # This file is part of 3D-ICE, version 2.2.3 .                               #
  #                                                                            #
  # 3D-ICE is free software: you can  redistribute it and/or  modify it  under #
  # the terms of the  GNU General  Public  License as  published by  the  Free #
@@ -37,9 +37,12 @@
  ##############################################################################
 
  ##############################################################################
+ 2012-09-20 3D-ICE 2.2.3
+   * Bug fix: Error in LU decomposition when SpreaderArea equal to SinkArea
+ ##############################################################################
  2012-08-13 3D-ICE 2.2.2
    * Network message TDICE_INSERT_POWERS_AND_SIMULATE_SLOT reduced to
-     TDICE_INSERT_POWERS only. Simulation step must be run senfding its proper
+     TDICE_INSERT_POWERS only. Simulation step must be run sending its proper
      message type
    * Bug fix: fixed copy of empty power queue
  ##############################################################################
