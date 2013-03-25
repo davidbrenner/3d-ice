@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -336,7 +336,7 @@ void compute_number_of_connections
 
         default :
 
-            fprintf (stderr, "Error: unknown sihk model %d\n", sink_model) ;
+            fprintf (stderr, "Error: unknown sink model %d\n", sink_model) ;
     }
 
     CellIndex_t tmp = 2u ;

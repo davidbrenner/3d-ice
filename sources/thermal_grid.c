@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -267,7 +267,7 @@ void fill_thermal_grid
 
                         break ;
 
-                    case TDICE_CHANNEL_MODEL_NONE :
+                    case TDICE_HEATSINK_MODEL_NONE :
 
                         fprintf (stderr, "WARNING: unset heatsink model\n") ;
 
@@ -277,7 +277,7 @@ void fill_thermal_grid
 
                         fprintf (stderr,
                             "WARNING: unknown heatsink model %d\n",
-                            stack_element->Pointer.Channel->ChannelModel) ;
+                            tgrid->HeatSink->SinkModel) ;
 
                         break ;
                 }
@@ -689,7 +689,7 @@ Conductance_t get_conductance_north
     {
         case TDICE_LAYER_SOLID :
         case TDICE_LAYER_SOURCE :
-            case TDICE_LAYER_SOLID_CONNECTED_TO_AMBIENT :
+        case TDICE_LAYER_SOLID_CONNECTED_TO_AMBIENT :
         case TDICE_LAYER_SOURCE_CONNECTED_TO_AMBIENT :
 
             return (  tgrid->TCProfile [ layer_index ]

@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -265,7 +265,7 @@ void fill_power_grid (PowerGrid_t *pgrid, StackElementList_t *list)
 
                         fprintf (stderr,
                             "WARNING: unknown heatsink model %d\n",
-                            stack_element->Pointer.Channel->ChannelModel) ;
+                            pgrid->HeatSink->SinkModel) ;
 
                         break ;
                 }

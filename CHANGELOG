@@ -1,5 +1,5 @@
  ##############################################################################
- # This file is part of 3D-ICE, version 2.2.4 .                               #
+ # This file is part of 3D-ICE, version 2.2.5 .                               #
  #                                                                            #
  # 3D-ICE is free software: you can  redistribute it and/or  modify it  under #
  # the terms of the  GNU General  Public  License as  published by  the  Free #
@@ -36,6 +36,9 @@
  # 1015 Lausanne, Switzerland           Url  : http://esl.epfl.ch/3d-ice.html #
  ##############################################################################
 
+ 2013-03-25 3D-ICE 2.2.5
+   * Bug fix: Fixed typo in 3D-ICE-Client.c and formatting output
+ ##############################################################################
  2013-02-05 3D-ICE 2.2.4
    * Bug fix: Fixed division Slot/Step time (floating point issue)
  ##############################################################################

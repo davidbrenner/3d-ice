@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -82,6 +82,7 @@ int main (int argc, char** argv)
     char server_ip [MAX_SERVER_IP] ;
 
     SimResult_t sim_result ;
+    Error_t error ;
 
     OutputInstant_t  instant ;
     OutputType_t     type ;
@@ -186,9 +187,9 @@ int main (int argc, char** argv)
 
         receive_message_from_socket (&client_socket, &server_reply) ;
 
-        extract_message_word (&server_reply, &sim_result, 0) ;
+        extract_message_word (&server_reply, &error, 0) ;
 
-        if (sim_result != TDICE_SUCCESS)
+        if (error != TDICE_SUCCESS)
         {
             network_message_destroy (&server_reply) ;
 
@@ -252,13 +253,13 @@ int main (int argc, char** argv)
         extract_message_word (&server_reply, &time,     0) ;
         extract_message_word (&server_reply, &nresults, 1) ;
 
-        fprintf (stdout, "%5.2f sec : \t", time) ;
+        fprintf (stdout, "%5.3e sec : \t", time) ;
 
         for (index = 2, nresults += 2 ; index != nresults ; index++)
         {
             extract_message_word (&server_reply, &temperature, index) ;
 
-            fprintf (stdout, "%5.2f K \t", temperature) ;
+            fprintf (stdout, "%5.3e K \t", temperature) ;
         }
 
         network_message_destroy (&server_reply) ;
@@ -298,7 +299,7 @@ int main (int argc, char** argv)
                 {
                     extract_message_word (&server_reply, &temperature, index) ;
 
-                    fprintf (tmap, "%5.2f ", temperature) ;
+                    fprintf (tmap, "%5.3e ", temperature) ;
                 }
                 fprintf (tmap, "\n") ;
             }
@@ -336,7 +337,7 @@ int main (int argc, char** argv)
         {
             extract_message_word (&server_reply, &temperature, index) ;
 
-            fprintf (stdout, "%5.2f K \t", temperature) ;
+            fprintf (stdout, "%5.3e K \t", temperature) ;
         }
 
         fprintf (stdout, "\n") ;

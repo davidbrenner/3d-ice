@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -363,7 +363,7 @@ heat_sink_opt
         if (stkd->HeatSink->SinkArea < stkd->HeatSink->SpreaderArea)
         {
             sprintf (error_message,
-                "Error: the area of the spreader must be smaller than the sink") ;
+                "Error: the area of the spreader must be greater (or equal) than the sink") ;
 
             free ($12) ;
             free ($22) ;

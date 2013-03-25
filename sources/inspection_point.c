@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -570,13 +570,13 @@ Error_t generate_inspection_point_output
                  ipoint->RowIndex, ipoint->ColumnIndex) ;
 
             fprintf (output_stream,
-                "%5.3f \t %7.3f\n", current_time, *(temperatures + index)) ;
+                "%5.3e \t %7.3e\n", current_time, *(temperatures + index)) ;
 
             break ;
 
         case TDICE_OUTPUT_TYPE_TFLP :
 
-            fprintf (output_stream, "%5.3f \t ", current_time) ;
+            fprintf (output_stream, "%5.3e \t ", current_time) ;
 
             temperatures += get_cell_offset_in_stack
 
@@ -608,7 +608,7 @@ Error_t generate_inspection_point_output
 
             for (index = 0 ; index != n_flp_el ; index++)
 
-                fprintf (output_stream, "%5.3f \t ", result [index]) ;
+                fprintf (output_stream, "%5.3e \t ", result [index]) ;
 
             fprintf (output_stream, "\n") ;
 
@@ -642,7 +642,7 @@ Error_t generate_inspection_point_output
                     (ipoint->FloorplanElement, dimensions, temperatures) ;
 
             fprintf (output_stream,
-                "%5.3f \t %7.3f\n", current_time, temperature) ;
+                "%5.3e \t %7.3e\n", current_time, temperature) ;
 
             break ;
 
@@ -694,7 +694,7 @@ Error_t generate_inspection_point_output
                      (ipoint->StackElement->Pointer.Channel, dimensions, temperatures) ;
 
             fprintf (output_stream,
-                "%5.3f \t %7.3f\n", current_time, temperature) ;
+                "%5.3e \t %7.3e\n", current_time, temperature) ;
 
             break ;
 

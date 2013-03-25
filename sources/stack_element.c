@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -240,7 +240,7 @@ void stack_element_print_thermal_map
     {
         FOR_EVERY_COLUMN (column_index, dimensions)
         {
-            fprintf (stream, "%7.3f  ", *temperatures++) ;
+            fprintf (stream, "%7.3e  ", *temperatures++) ;
         }
 
         fprintf (stream, "\n") ;
@@ -265,7 +265,7 @@ void stack_element_print_power_map
     {
         FOR_EVERY_COLUMN (column_index, dimensions)
         {
-            fprintf (stream, "%7.3f  ", *sources++) ;
+            fprintf (stream, "%7.3e  ", *sources++) ;
         }
 
         fprintf (stream, "\n") ;

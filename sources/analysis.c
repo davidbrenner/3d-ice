@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -132,10 +132,10 @@ void analysis_print (Analysis_t *analysis, FILE *stream, String_t prefix)
 
     else
 
-        fprintf (stream, "  transient step %.2f, slot %.2f ;\n",
+        fprintf (stream, "  transient step %.3e, slot %.3e ;\n",
             analysis->StepTime, analysis->SlotTime) ;
 
-    fprintf (stream, "%s  initial temperature  %.2f ;\n",
+    fprintf (stream, "%s  initial temperature  %.3e ;\n",
         prefix, analysis->InitialTemperature) ;
 
     fprintf (stream, "%s\n", prefix) ;

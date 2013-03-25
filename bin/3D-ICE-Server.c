@@ -1,5 +1,5 @@
 /******************************************************************************
- * This file is part of 3D-ICE, version 2.2.4 .                               *
+ * This file is part of 3D-ICE, version 2.2.5 .                               *
  *                                                                            *
  * 3D-ICE is free software: you can  redistribute it and/or  modify it  under *
  * the terms of the  GNU General  Public  License as  published by  the  Free *
@@ -338,7 +338,7 @@ int main (int argc, char** argv)
                     goto sim_error ;
                 }
 
-                fprintf (stdout, "%.3f ", get_simulated_time (&analysis)) ;
+                fprintf (stdout, "%.3e ", get_simulated_time (&analysis)) ;
 
                 fflush (stdout) ;
 
@@ -380,7 +380,7 @@ int main (int argc, char** argv)
                     goto sim_error ;
                 }
 
-                fprintf (stdout, "%.3f ", get_simulated_time (&analysis)) ;
+                fprintf (stdout, "%.3e ", get_simulated_time (&analysis)) ;
 
                 fflush (stdout) ;
 
