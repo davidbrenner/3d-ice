@@ -52,6 +52,12 @@ extern "C"
 
 /******************************************************************************/
 
+    /*! Definition of yyscan_t used for flex */
+
+    typedef void* yyscan_t;
+
+
+
     /*! Definition of the primitive type String_t */
 
     typedef char* String_t ;

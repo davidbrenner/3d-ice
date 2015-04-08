@@ -44,6 +44,9 @@
     #include "die.h"
     #include "stack_element.h"
     #include "inspection_point.h"
+    #include "analysis.h"
+    #include "output.h"
+    #include "stack_description.h"
 }
 
 // The YYSTYPE union used to collect the types of tokens and rules
@@ -67,8 +70,6 @@
 {
     #include <math.h>
 
-    #include "analysis.h"
-    #include "output.h"
     #include "channel.h"
     #include "heat_sink.h"
     #include "dimensions.h"
@@ -78,7 +79,6 @@
     #include "material_list.h"
     #include "die_list.h"
     #include "macros.h"
-    #include "stack_description.h"
 
     #include "../flex/stack_description_scanner.h"
 

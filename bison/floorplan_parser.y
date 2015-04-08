@@ -42,6 +42,7 @@
     #include "floorplan_element.h"
     #include "ic_element.h"
     #include "powers_queue.h"
+    #include "floorplan.h"
 }
 
 %union
@@ -57,7 +58,6 @@
 {
     #include "ic_element_list.h"
     #include "dimensions.h"
-    #include "floorplan.h"
     #include "macros.h"
 
     #include "../flex/floorplan_scanner.h"
